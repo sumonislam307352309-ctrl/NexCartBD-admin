@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NexCart BD — Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--brand:#4f46e5;--soft:#eef2ff;--ok:#059669;--ok-bg:#d1fae5;--bad:#e11d48;--bad-bg:#ffe4e6;--warn:#d97706;--warn-bg:#fef3c7;--ship:#1d4ed8;--ship-bg:#dbeafe}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;line-height:1.5}
+header{background:linear-gradient(135deg,#0B1426,#1a2744);color:#fff;padding:16px 18px;position:sticky;top:0;z-index:20}
+header .bar{max-width:1100px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{font-size:20px;margin:0;font-weight:900;display:flex;align-items:center;gap:10px}header h1 span{color:#00d4c8}
+header .cart-icon{width:28px;height:28px;flex-shrink:0}
+.wrap{max-width:1100px;margin:auto;padding:20px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 2px 12px #0f172a0a}
+h2{font-size:17px;margin:0 0 14px;font-weight:800}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tab{padding:9px 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-weight:600;font-size:13px;cursor:pointer;color:var(--muted);transition:all .15s}
+.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tab:hover:not(.active){border-color:var(--brand);color:var(--brand)}
+input,textarea,select{display:block;width:100%;padding:11px 13px;margin:6px 0 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px #4f46e51a}
+label{font-size:12.5px;font-weight:700;color:var(--muted)}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-weight:600;transition:all .15s}
+.primary{background:var(--brand);color:#fff}.primary:hover{filter:brightness(1.08)}
+.danger{background:var(--bad-bg);color:var(--bad)}.danger:hover{filter:brightness(.97)}
+.secondary{background:var(--soft);color:var(--brand)}.secondary:hover{filter:brightness(.97)}
+.success-btn{background:var(--ok-bg);color:var(--ok)}.success-btn:hover{filter:brightness(.97)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center}
+.stat .l{font-size:12px;color:var(--muted)}.stat .n{font-size:26px;font-weight:800;color:var(--brand);margin-top:4px}
+.stat .n.ok{color:var(--ok)}.stat .n.warn{color:var(--warn)}.stat .n.bad{color:var(--bad)}
+.products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.item{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--bg);transition:box-shadow .2s}
+.item:hover{box-shadow:0 4px 16px rgba(15,23,42,.08)}
+.item img{width:100%;height:120px;object-fit:cover;border-radius:10px;background:#e2e8f0}
+.item b{display:block;margin:8px 0 4px;font-size:14px}
+.item p{font-size:12.5px;color:var(--muted);margin:0}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.hidden{display:none!important}
+#message{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:13.5px;font-weight:500;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px;border-bottom:2px solid var(--line);color:var(--muted);font-size:12px}
+td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tablewrap{overflow:auto}
+.ost{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;background:var(--soft);color:var(--brand)}
+.ost.done{background:var(--ok-bg);color:var(--ok)}.ost.cancel{background:var(--bad-bg);color:var(--bad)}
+.ost.ship{background:var(--ship-bg);color:var(--ship)}.ost.proc{background:var(--warn-bg);color:var(--warn)}
+.order-status-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.ostab{padding:8px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-weight:600;font-size:13px;cursor:pointer;color:var(--muted);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.ostab:hover:not(.active){border-color:var(--brand);color:var(--brand)}
+.ostab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.ostab-count{background:rgba(0,0,0,.12);padding:2px 7px;border-radius:99px;font-size:11px;font-weight:700;min-width:20px;text-align:center}
+.ostab.active .ostab-count{background:rgba(255,255,255,.25)}
+.ostab[data-status="নতুন"] .ostab-count{background:#fef3c7;color:#d97706}
+.ostab.active[data-status="নতুন"] .ostab-count{background:rgba(255,255,255,.3);color:#fff}
+.ostab[data-status="বাতিল"] .ostab-count{background:#ffe4e6;color:#e11d48}
+.ostab.active[data-status="বাতিল"] .ostab-count{background:rgba(255,255,255,.3);color:#fff}
+.pm-card{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--bg)}
+.pm-card .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.modal-overlay{position:fixed;inset:0;background:rgba(5,8,23,.65);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.invoice-modal{background:#fff;border-radius:16px;width:min(340px,100%);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.invoice-actions{display:flex;gap:8px;padding:14px 16px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:2;border-radius:16px 16px 0 0}
+.invoice-paper{padding:16px;background:#fff;color:#0f172a;font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}
+.inv-header{text-align:center;border-bottom:2px solid #4f46e5;padding-bottom:12px;margin-bottom:14px}
+.inv-logo{font-size:20px;font-weight:900}
+.inv-logo span{color:#4f46e5}
+.inv-badge{display:inline-block;margin-top:10px;padding:6px 16px;border-radius:99px;font-size:13px;font-weight:800}
+.inv-badge.paid{background:#d1fae5;color:#059669}
+.inv-badge.pending{background:#fef3c7;color:#d97706}
+.inv-badge.cod{background:#e0e7ff;color:#4338ca}
+.inv-qr-section{display:flex;align-items:center;gap:14px;background:#f8fafc;border-radius:12px;padding:14px;margin:14px 0}
+.inv-footer{text-align:center;font-size:11.5px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+.inv-footer strong{color:#4f46e5}
+@media(max-width:700px){.grid,.stats{grid-template-columns:1fr 1fr}.products{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.stats{grid-template-columns:1fr}.products{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>
+      <svg class="cart-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 18C7 18.55 7.45 19 8 19C8.55 19 9 18.55 9 18C9 17.45 8.55 17 8 17C7.45 17 7 17.45 7 18Z" fill="#00D4C8"/>
+        <path d="M17 18C17 18.55 17.45 19 18 19C18.55 19 19 18.55 19 18C19 17.45 18.55 17 18 17C17.45 17 17 17.45 17 18Z" fill="#00D4C8"/>
+        <path d="M7.16 14H18.41C18.92 14 19.36 13.64 19.47 13.14L20.95 6.14C21.02 5.82 20.95 5.49 20.75 5.24C20.55 5 20.24 4.85 19.91 4.85H6.21L5.77 2.82C5.66 2.33 5.22 2 4.71 2H2V4H4.21L6.71 15.47C6.82 15.97 7.26 16.33 7.77 16.33H19V14.33H8.21L7.16 14Z" fill="#00D4C8"/>
+      </svg>
+      NexCart <span>BD</span> · Admin
+    </h1>
+    <button id="logout" class="secondary hidden">লগআউট</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="message" class="hidden"></div>
+
+  <section id="loginCard" class="card" style="max-width:440px;margin:40px auto">
+    <h2>অ্যাডমিন লগইন</h2>
+    <form id="loginForm">
+      <label>ইমেইল</label>
+      <input name="email" type="email" required autocomplete="username">
+      <label>পাসওয়ার্ড</label>
+      <input name="password" type="password" required autocomplete="current-password">
+      <button class="primary" style="width:100%">লগইন করুন</button>
+    </form>
+  </section>
+
+  <div id="dashboard" class="hidden">
+    <div class="stats">
+      <div class="stat"><div class="l">মোট পণ্য</div><div class="n" id="productStat">0</div></div>
+      <div class="stat"><div class="l">মোট অর্ডার</div><div class="n" id="orderStat">0</div></div>
+      <div class="stat"><div class="l">নতুন অর্ডার</div><div class="n warn" id="newOrderStat">0</div></div>
+      <div class="stat"><div class="l">আজকের অর্ডার</div><div class="n ok" id="todayOrderStat">0</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="products">পণ্য</button>
+      <button class="tab" data-tab="orders">অর্ডার</button>
+      <button class="tab" data-tab="settings">সেটিংস</button>
+    </div>
+
+    <div id="tab-products">
+      <section class="card">
+        <h2 id="formTitle">নতুন পণ্য যোগ করুন</h2>
+        <form id="productForm">
+          <input type="hidden" name="id">
+          <label>পণ্যের নাম</label>
+          <input name="name" required maxlength="180" placeholder="যেমন: Wireless Earbuds Pro">
+          <label>ক্যাটাগরি</label>
+          <input name="category" required value="অন্যান্য" maxlength="80" list="catList">
+          <datalist id="catList">
+            <option value="মোবাইল"><option value="অডিও"><option value="কম্পিউটার">
+            <option value="অ্যাক্সেসরিজ"><option value="গেমিং"><option value="চার্জার"><option value="স্মার্ট ডিভাইস">
+          </datalist>
+          <div class="grid">
+            <div><label>বিক্রয় মূল্য (৳)</label><input name="price" type="number" min="0" step="0.01" required></div>
+            <div><label>আগের মূল্য (৳)</label><input name="old_price" type="number" min="0" step="0.01" placeholder="অফার থাকলে"></div>
+          </div>
+          <div class="grid">
+            <div><label>স্টক</label><input name="stock" type="number" min="0" step="1" value="0" required></div>
+            <div><label>ফিচার্ড?</label><select name="featured"><option value="false">না</option><option value="true">হ্যাঁ</option></select></div>
+          </div>
+          <label>বিস্তারিত</label>
+          <textarea name="description" rows="3" placeholder="পণ্যের বিবরণ লিখুন..."></textarea>
+          <label>ছবি (ফাইল)</label>
+          <input id="images" type="file" accept="image/*" multiple>
+          <label>অথবা ছবির URL (প্রতি লাইনে একটি)</label>
+          <textarea name="imageUrls" rows="2" placeholder="https://..."></textarea>
+          <p id="currentImages" style="font-size:12px;color:var(--muted);margin:0 0 10px"></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="primary">পণ্য সংরক্ষণ</button>
+            <button type="button" class="secondary" onclick="resetForm()">নতুন ফর্ম</button>
+          </div>
+        </form>
+      </section>
+      <section class="card">
+        <h2>পণ্য তালিকা <span id="productCountBadge" style="font-size:13px;font-weight:500;color:var(--muted)"></span></h2>
+        <div id="productList" class="products">লোড হচ্ছে...</div>
+      </section>
+    </div>
+
+    <div id="tab-orders" class="hidden">
+      <section class="card">
+        <h2 style="margin:0 0 14px">অর্ডার পরিচালনা</h2>
+        
+        <!-- Status Tabs -->
+        <div class="order-status-tabs" id="orderStatusTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+          <button class="ostab active" data-status="all">সব <span class="ostab-count" id="cnt-all">0</span></button>
+          <button class="ostab" data-status="নতুন">নতুন <span class="ostab-count" id="cnt-নতুন">0</span></button>
+          <button class="ostab" data-status="নিশ্চিত">নিশ্চিত <span class="ostab-count" id="cnt-নিশ্চিত">0</span></button>
+          <button class="ostab" data-status="প্রসেসিং">প্রসেসিং <span class="ostab-count" id="cnt-প্রসেসিং">0</span></button>
+          <button class="ostab" data-status="পাঠানো হয়েছে">পাঠানো <span class="ostab-count" id="cnt-পাঠানো হয়েছে">0</span></button>
+          <button class="ostab" data-status="সম্পন্ন">সম্পন্ন <span class="ostab-count" id="cnt-সম্পন্ন">0</span></button>
+          <button class="ostab" data-status="বাতিল">বাতিল <span class="ostab-count" id="cnt-বাতিল">0</span></button>
+        </div>
+
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>অর্ডার</th><th>কাস্টমার</th><th>পণ্য</th><th>মোট</th><th>পেমেন্ট</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody"><tr><td colspan="7">লোড হচ্ছে...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div id="tab-settings" class="hidden">
+      <section class="card">
+        <h2>স্টোর ওয়েবসাইট লিংক</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:10px">পণ্যের শেয়ার লিংক তৈরি করতে আপনার ইউজার সাইটের লিংক দিন (যেমন: https://nexcartbd.com)</p>
+        <label>স্টোর URL</label>
+        <input id="storeUrl" placeholder="https://your-store.com">
+        <button class="primary" id="saveStoreUrl">স্টোর লিংক সেভ করুন</button>
+      </section>
+      <section class="card">
+        <h2>WhatsApp নম্বর</h2>
+        <label>নম্বর (দেশ কোডসহ, যেমন 8801307352309)</label>
+        <input id="waNumber" placeholder="8801307352309">
+        <button class="primary" id="saveWa">WhatsApp সেভ করুন</button>
+      </section>
+      <section class="card">
+        <h2>পেমেন্ট পদ্ধতি</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">COD-এ নম্বর লাগে না। মোবাইল ব্যাংকিং-এ নম্বর + নোটিশ দিন।</p>
+        <div id="pmList"></div>
+        <button class="secondary" id="addPm" style="margin-top:8px">+ নতুন পেমেন্ট মেথড</button>
+        <button class="primary" id="savePm" style="margin-top:8px;margin-left:8px">পেমেন্ট সেভ করুন</button>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- Invoice Modal -->
+<div class="modal-overlay" id="invoiceModal">
+  <div class="invoice-modal">
+    <div class="invoice-actions">
+      <button class="primary" id="downloadInvoiceBtn" style="flex:1">📥 পিক ডাউনলোড</button>
+      <button class="secondary" id="closeInvoiceBtn">বন্ধ</button>
+    </div>
+    <div class="invoice-paper" id="invoicePaper"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://atjvfcoswdngdlvposxl.supabase.co";
+const SUPABASE_KEY = "sb_publishable_B9Qz3tWc8ur5AV0G_5Z1JQ_ex0XWkRx";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const money = n => "৳" + Number(n || 0).toLocaleString("en-US");
+const safe = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let products = [], orders = [], existingImages = [], paymentMethods = [], orderFilter = "all";
+
+function message(text, error = false) {
+  $("message").textContent = text;
+  $("message").classList.remove("hidden");
+  $("message").style.background = error ? "#ffe4e6" : "#ecfdf5";
+  $("message").style.color = error ? "#be123c" : "#065f46";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  setTimeout(() => hideMessage(), 4000);
+}
+function hideMessage() { $("message").classList.add("hidden"); }
+function showDashboard() {
+  $("loginCard").classList.add("hidden");
+  $("dashboard").classList.remove("hidden");
+  $("logout").classList.remove("hidden");
+}
+function showLogin() {
+  $("loginCard").classList.remove("hidden");
+  $("dashboard").classList.add("hidden");
+  $("logout").classList.add("hidden");
+}
+function copyText(text) {
+  if (!text) return;
+  const done = () => message("কপি হয়েছে: " + text);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta); done();
+    });
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta); done();
+  }
+}
+
+async function isAdmin() {
+  const { data: { user }, error } = await db.auth.getUser();
+  if (error || !user) return false;
+  const { data } = await db.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
+  return !!data;
+}
+async function refreshAuth() {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { showLogin(); return; }
+    if (!await isAdmin()) {
+      await db.auth.signOut();
+      showLogin();
+      message("অ্যাডমিন অনুমতি নেই।", true);
+      return;
+    }
+    showDashboard();
+    await Promise.all([loadProducts(), loadOrders(), loadSettings()]);
+  } catch (err) {
+    showLogin();
+    message("অ্যাক্সেস ব্যর্থ: " + err.message, true);
+  }
+}
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  hideMessage();
+  const f = new FormData(e.target);
+  const { error } = await db.auth.signInWithPassword({
+    email: f.get("email"),
+    password: f.get("password")
+  });
+  if (error) { message("লগইন ব্যর্থ: " + error.message, true); return; }
+  await refreshAuth();
+});
+$("logout").addEventListener("click", async () => {
+  await db.auth.signOut();
+  showLogin();
+  message("লগআউট সম্পন্ন।");
+});
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    ["products", "orders", "settings"].forEach(id => {
+      $("tab-" + id).classList.toggle("hidden", t.dataset.tab !== id);
+    });
+  });
+});
+
+/* PRODUCTS */
+async function loadProducts() {
+  const { data, error } = await db.from("products").select("*").order("created_at", { ascending: false });
+  if (error) { message("পণ্য লোড ব্যর্থ: " + error.message, true); return; }
+  products = data || [];
+  $("productStat").textContent = products.length;
+  $("productCountBadge").textContent = "(" + products.length + "টি)";
+  renderProducts();
+}
+function getStoreBase() {
+  // Store URL — change this to your live store link
+  return localStorage.getItem("nexcart_store_url") || "https://your-store-domain.com";
+}
+
+function copyProductLink(id) {
+  const base = getStoreBase().replace(/\/$/, "");
+  const link = base + "/?id=" + id;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(() => message("পণ্যের লিংক কপি হয়েছে:\n" + link));
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = link;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    message("পণ্যের লিংক কপি হয়েছে:\n" + link);
+  }
+}
+
+function renderProducts() {
+  $("productList").innerHTML = products.length ? products.map(p => `
+    <article class="item">
+      <img src="${safe(p.images?.[0] || "https://placehold.co/400x250?text=Product")}" alt="" onerror="this.src='https://placehold.co/400x250?text=No+Image'">
+      <b>${safe(p.name)}</b>
+      <p>${safe(p.category)} · ${money(p.price)} · স্টক ${p.stock}</p>
+      <p>${p.active ? "✅ সক্রিয়" : "⏸ নিষ্ক্রিয়"}${p.featured ? " · ⭐ ফিচার্ড" : ""}</p>
+      <div class="actions">
+        <button class="secondary" onclick="editProduct('${safe(p.id)}')">সম্পাদনা</button>
+        <button class="success-btn" onclick="copyProductLink('${safe(p.id)}')" style="font-size:12px">🔗 লিংক</button>
+        <button class="danger" onclick="deleteProduct('${safe(p.id)}')">মুছুন</button>
+      </div>
+    </article>`).join("") : '<p style="grid-column:1/-1;text-align:center;color:var(--muted);padding:30px">কোনো পণ্য নেই।</p>';
+}
+function resetForm() {
+  $("productForm").reset();
+  $("productForm").elements.id.value = "";
+  $("productForm").elements.category.value = "অন্যান্য";
+  $("productForm").elements.stock.value = "0";
+  existingImages = [];
+  $("images").value = "";
+  $("currentImages").textContent = "";
+  $("formTitle").textContent = "নতুন পণ্য যোগ করুন";
+}
+function editProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const f = $("productForm").elements;
+  f.id.value = p.id;
+  f.name.value = p.name;
+  f.category.value = p.category || "অন্যান্য";
+  f.price.value = p.price;
+  f.old_price.value = p.old_price ?? "";
+  f.stock.value = p.stock;
+  f.featured.value = String(!!p.featured);
+  f.description.value = p.description || "";
+  f.imageUrls.value = "";
+  existingImages = [...(p.images || [])];
+  $("currentImages").textContent = "বর্তমান ছবি: " + existingImages.length + "টি";
+  $("formTitle").textContent = "পণ্য সম্পাদনা";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+async function uploadImages(files) {
+  const urls = [];
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) throw new Error("শুধু ছবি আপলোড করুন।");
+    if (file.size > 5 * 1024 * 1024) throw new Error(file.name + " 5MB-এর বেশি।");
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = crypto.randomUUID() + "." + (ext || "jpg");
+    const { error } = await db.storage.from("product-images").upload(path, file, {
+      contentType: file.type, upsert: false
+    });
+    if (error) throw error;
+    urls.push(db.storage.from("product-images").getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
+}
+$("productForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  hideMessage();
+  const btn = e.submitter;
+  btn.disabled = true;
+  btn.textContent = "সেভ হচ্ছে...";
+  try {
+    const f = new FormData(e.target);
+    const uploaded = await uploadImages(Array.from($("images").files || []));
+    const urls = String(f.get("imageUrls") || "").split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    const images = [...existingImages, ...uploaded, ...urls];
+    const payload = {
+      name: String(f.get("name")).trim(),
+      category: String(f.get("category")).trim(),
+      price: Number(f.get("price")),
+      old_price: f.get("old_price") ? Number(f.get("old_price")) : null,
+      description: String(f.get("description") || "").trim(),
+      stock: Number(f.get("stock")),
+      featured: f.get("featured") === "true",
+      images,
+      active: true
+    };
+    const id = String(f.get("id") || "");
+    const result = id
+      ? await db.from("products").update(payload).eq("id", id).select().single()
+      : await db.from("products").insert(payload).select().single();
+    if (result.error) throw result.error;
+    resetForm();
+    await loadProducts();
+    message("পণ্য সংরক্ষিত হয়েছে।");
+  } catch (err) {
+    message("ব্যর্থ: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "পণ্য সংরক্ষণ";
+  }
+});
+async function deleteProduct(id) {
+  if (!confirm("পণ্য মুছবেন?")) return;
+  const { error } = await db.from("products").delete().eq("id", id);
+  if (error) { message("মুছতে ব্যর্থ: " + error.message, true); return; }
+  await loadProducts();
+  message("পণ্য মুছে ফেলা হয়েছে।");
+}
+
+/* ORDERS */
+async function loadOrders() {
+  const { data, error } = await db.from("orders").select("*").order("created_at", { ascending: false }).limit(150);
+  if (error) { message("অর্ডার লোড ব্যর্থ: " + error.message, true); return; }
+  orders = data || [];
+  $("orderStat").textContent = orders.length;
+  $("newOrderStat").textContent = orders.filter(o => o.status === "নতুন").length;
+  const today = new Date().toDateString();
+  $("todayOrderStat").textContent = orders.filter(o => new Date(o.created_at).toDateString() === today).length;
+  renderOrders();
+}
+function statusClass(st) {
+  if (st === "সম্পন্ন") return "done";
+  if (st === "বাতিল") return "cancel";
+  if (st === "পাঠানো হয়েছে") return "ship";
+  if (st === "প্রসেসিং" || st === "নিশ্চিত") return "proc";
+  return "";
+}
+function isPaid(o) {
+  const pm = (o.payment_method || "").toLowerCase();
+  if (pm.includes("cash on delivery") || pm.includes("cod")) return false;
+  if (o.transaction_id && o.transaction_id.trim().length > 3) return true;
+  return false;
+}
+
+function updateOrderCounts() {
+  const statuses = ["নতুন", "নিশ্চিত", "প্রসেসিং", "পাঠানো হয়েছে", "সম্পন্ন", "বাতিল"];
+  const cntAll = $("cnt-all");
+  if (cntAll) cntAll.textContent = orders.length;
+  statuses.forEach(s => {
+    const el = document.getElementById("cnt-" + s);
+    if (el) el.textContent = orders.filter(o => o.status === s).length;
+  });
+}
+
+function renderOrders() {
+  const statuses = ["নতুন", "নিশ্চিত", "প্রসেসিং", "পাঠানো হয়েছে", "সম্পন্ন", "বাতিল"];
+  let list = orders;
+  if (orderFilter !== "all") list = orders.filter(o => o.status === orderFilter);
+
+  updateOrderCounts();
+
+  $("ordersBody").innerHTML = list.length ? list.map(o => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    const itemsHtml = items.map(i =>
+      `<div style="margin:2px 0">• <b>${safe(i.name)}</b> × ${i.quantity || 1} <span style="color:var(--muted)">(${money(i.price)})</span></div>`
+    ).join("") || "—";
+    const stClass = statusClass(o.status);
+    const paid = isPaid(o);
+    const pm = o.payment_method || "";
+    const isBkash = /বিকাশ|bkash/i.test(pm);
+    const isNagad = /নগদ|nagad/i.test(pm);
+    const isCod = /cod|cash on delivery/i.test(pm);
+    const payLabel = isBkash ? "বিকাশ" : (isNagad ? "নগদ" : (isCod ? "COD" : pm.split("|")[0].trim()));
+    const fromMatch = pm.match(/From:\s*([0-9+]+)/i);
+    const senderPhone = fromMatch ? fromMatch[1] : "";
+    const txn = (o.transaction_id || "").trim();
+    return `<tr>
+      <td>
+        <b>#${safe(String(o.id).slice(0, 8))}</b>
+        <div style="font-size:11px;color:var(--muted)">${new Date(o.created_at).toLocaleString("bn-BD")}</div>
+      </td>
+      <td>
+        <b>${safe(o.customer_name)}</b>
+        <div>${safe(o.phone)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5">${safe(o.address)}</div>
+      </td>
+      <td style="min-width:140px">${itemsHtml}</td>
+      <td>
+        <b>${money(o.total)}</b>
+        ${o.shipping ? `<div style="font-size:11px;color:var(--muted)">শিপ: ${money(o.shipping)}</div>` : ""}
+        <div style="margin-top:4px">
+          <span class="ost ${paid ? "done" : "proc"}" style="font-size:10px">${paid ? "✓ Paid" : "⏳ Pending"}</span>
+        </div>
+      </td>
+      <td style="font-size:12px;min-width:160px">
+        <b style="color:${isBkash ? '#e11d48' : (isNagad ? '#ea580c' : 'inherit')}">${safe(payLabel)}</b>
+        ${txn ? `<div style="margin-top:6px;padding:8px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
+          <div style="font-size:10px;color:#059669;font-weight:700;margin-bottom:3px">Transaction ID</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-weight:800;letter-spacing:.3px;font-size:13px;word-break:break-all">${safe(txn)}</span>
+            <button type="button" onclick="copyText('${safe(txn)}')" style="padding:4px 8px;font-size:11px;background:#d1fae5;color:#065f46;border-radius:6px;border:0;cursor:pointer;flex-shrink:0">কপি</button>
+          </div>
+        </div>` : ""}
+        ${senderPhone ? `<div style="margin-top:6px;padding:8px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">
+          <div style="font-size:10px;color:#1d4ed8;font-weight:700;margin-bottom:3px">পাঠানোর নাম্বার</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-weight:800;font-size:13px">${safe(senderPhone)}</span>
+            <button type="button" onclick="copyText('${safe(senderPhone)}')" style="padding:4px 8px;font-size:11px;background:#dbeafe;color:#1e40af;border-radius:6px;border:0;cursor:pointer;flex-shrink:0">কপি</button>
+          </div>
+        </div>` : (!isCod && !txn ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">পেমেন্ট তথ্য নেই</div>` : "")}
+      </td>
+      <td>
+        <span class="ost ${stClass}" style="margin-bottom:8px;display:inline-block">${safe(o.status)}</span>
+        <select onchange="quickStatus('${safe(o.id)}', this.value)" style="margin:0;padding:7px 10px;font-size:12px;width:100%;border-radius:8px">
+          <option value="">স্ট্যাটাস বদলান</option>
+          ${statuses.filter(s => s !== o.status).map(s => `<option value="${s}">${s}</option>`).join("")}
+        </select>
+      </td>
+      <td>
+        <button class="success-btn" style="padding:6px 10px;font-size:12px;margin-bottom:4px;display:block;width:100%" onclick="openInvoice('${safe(o.id)}')">📄 ইনভয়েস</button>
+        <button class="danger" style="padding:6px 10px;font-size:12px;display:block;width:100%" onclick="deleteOrder('${safe(o.id)}')">মুছুন</button>
+      </td>
+    </tr>`;
+  }).join("") : '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">এই স্ট্যাটাসে কোনো অর্ডার নেই।</td></tr>';
+}
+
+// Status tab clicks
+document.getElementById("orderStatusTabs")?.addEventListener("click", e => {
+  const btn = e.target.closest(".ostab");
+  if (!btn) return;
+  document.querySelectorAll(".ostab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  orderFilter = btn.dataset.status;
+  renderOrders();
+});
+
+function copyText(text) {
+  if (!text) return;
+  const done = () => message("কপি হয়েছে: " + text);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta); done();
+    });
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta); done();
+  }
+}
+
+async function quickStatus(id, status) {
+  if (!status) return;
+  const { error } = await db.from("orders").update({ status }).eq("id", id);
+  if (error) { message("আপডেট ব্যর্থ: " + error.message, true); return; }
+  await loadOrders();
+  await loadProducts();
+  message("স্ট্যাটাস আপডেট হয়েছে" + (status === "বাতিল" ? " (স্টক ফেরত)" : "") + "।");
+}
+async function deleteOrder(id) {
+  if (!confirm("অর্ডার মুছবেন? স্টক ফেরত যাবে (যদি বাতিল না হয়ে থাকে)।")) return;
+  const { error } = await db.from("orders").delete().eq("id", id);
+  if (error) { message("মুছতে ব্যর্থ: " + error.message, true); return; }
+  await loadOrders();
+  await loadProducts();
+  message("অর্ডার মুছে ফেলা হয়েছে।");
+}
+
+/* ========== INVOICE — Pure Canvas (no html2canvas) ========== */
+let _currentInvoiceOrder = null;
+
+function openInvoice(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) { message("অর্ডার পাওয়া যায়নি", true); return; }
+  _currentInvoiceOrder = o;
+
+  const items = Array.isArray(o.items) ? o.items : [];
+  const paid = isPaid(o);
+  const isCOD = /cash on delivery|cod/i.test(o.payment_method || "");
+  const shortId = String(o.id).slice(0, 8).toUpperCase();
+  const fullAddress = o.address || [o.upazila, o.district].filter(Boolean).join(", ");
+
+  let badgeClass = "pending";
+  let badgeText = "⏳ টাকা বাকি";
+  if (paid) { badgeClass = "paid"; badgeText = "✅ টাকা পেইড"; }
+  else if (isCOD) { badgeClass = "cod"; badgeText = "💵 ক্যাশ অন ডেলিভারি"; }
+
+  const qrText = [
+    "NexCart BD Order",
+    "ID: #" + shortId,
+    "Name: " + (o.customer_name || ""),
+    "Phone: " + (o.phone || ""),
+    "Address: " + fullAddress,
+    "Products: " + items.map(i => i.name + " x" + (i.quantity || 1)).join(", "),
+    "Total: " + money(o.total),
+    "Payment: " + (paid ? "PAID" : (isCOD ? "COD" : "PENDING")),
+    o.transaction_id ? "Txn: " + o.transaction_id : ""
+  ].filter(Boolean).join("\n");
+
+  // Show preview with online QR (always works)
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + encodeURIComponent(qrText);
+
+  $("invoicePaper").innerHTML = `
+    <div style="text-align:center;background:linear-gradient(135deg,#0B1426,#1a2744);color:#fff;margin:-16px -16px 18px;padding:22px 16px 28px;border-radius:0;position:relative">
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 18C7 18.55 7.45 19 8 19C8.55 19 9 18.55 9 18C9 17.45 8.55 17 8 17C7.45 17 7 17.45 7 18Z" fill="#00D4C8"/>
+          <path d="M17 18C17 18.55 17.45 19 18 19C18.55 19 19 18.55 19 18C19 17.45 18.55 17 18 17C17.45 17 17 17.45 17 18Z" fill="#00D4C8"/>
+          <path d="M7.16 14H18.41C18.92 14 19.36 13.64 19.47 13.14L20.95 6.14C21.02 5.82 20.95 5.49 20.75 5.24C20.55 5 20.24 4.85 19.91 4.85H6.21L5.77 2.82C5.66 2.33 5.22 2 4.71 2H2V4H4.21L6.71 15.47C6.82 15.97 7.26 16.33 7.77 16.33H19V14.33H8.21L7.16 14Z" fill="#00D4C8"/>
+        </svg>
+        <div>
+          <div style="font-size:20px;font-weight:900;text-align:left">NexCart <span style="color:#00D4C8">BD</span></div>
+          <div style="font-size:11px;opacity:.85;text-align:left">Everything You Need, One Cart.</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:-6px">
+      <div class="inv-badge ${badgeClass}" style="font-size:14px;padding:8px 20px">${badgeText}</div>
+    </div>
+    <div style="text-align:center;margin:16px 0 12px">
+      <div style="font-size:11px;color:#94a3b8;letter-spacing:1.5px">ORDER ID</div>
+      <div style="font-size:28px;font-weight:900;letter-spacing:1px;color:#0f172a">#${shortId}</div>
+    </div>
+    <div style="background:#eef2ff;border-radius:14px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:42px;height:42px;background:#00D4C8;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0">👤</div>
+        <div style="font-size:13.5px;line-height:1.7">
+          <div style="font-weight:800;font-size:15px;color:#0f172a">${safe(o.customer_name)}</div>
+          <div style="color:#475569">📱 ${safe(o.phone)}</div>
+          <div style="color:#64748b">📍 ${safe(fullAddress)}</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;background:#f1f5f9;border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:26px;font-weight:900;color:#0B1426">${money(o.total)} <span style="font-size:14px;font-weight:600;color:#64748b">${paid ? "( Paid )" : (isCOD ? "( COD )" : "( Pending )")}</span></div>
+    </div>
+    <div style="text-align:center">
+      <img id="qrImg" src="${qrUrl}" width="160" height="160" alt="QR" style="display:block;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:8px"/>
+      <div style="display:inline-block;margin-top:12px;background:#e0f7f5;color:#0B1426;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600">
+        ▣ QR স্ক্যান করুন — সব তথ্য দেখবেন
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8">
+      <div style="font-weight:800;color:#00D4C8;font-size:14px">NexCart BD</div>
+      WhatsApp: 01307-352309 · Everything You Need, One Cart.
+    </div>
+  `;
+
+  $("invoiceModal").classList.add("show");
+}
+
+$("closeInvoiceBtn").addEventListener("click", () => {
+  $("invoiceModal").classList.remove("show");
+});
+$("invoiceModal").addEventListener("click", e => {
+  if (e.target === $("invoiceModal")) $("invoiceModal").classList.remove("show");
+});
+
+// Pure Canvas invoice — no html2canvas needed
+function makeInvoiceCanvas(o) {
+  return new Promise((resolve, reject) => {
+    const items = Array.isArray(o.items) ? o.items : [];
+    const paid = isPaid(o);
+    const isCOD = /cash on delivery|cod/i.test(o.payment_method || "");
+    const shortId = String(o.id).slice(0, 8).toUpperCase();
+    const fullAddress = o.address || [o.upazila, o.district].filter(Boolean).join(", ");
+    const productLine = items.map(i => (i.name || "") + " x" + (i.quantity || 1)).join(", ");
+    const name = String(o.customer_name || "—");
+    const phone = String(o.phone || "");
+
+    // Status styles matching the design
+    let statusBn, badgeBg, badgeColor, amountSuffix, amountColor;
+    if (paid) {
+      statusBn = "টাকা পেইড";
+      badgeBg = "#d1fae5"; badgeColor = "#059669";
+      amountSuffix = " ( Paid )"; amountColor = "#4f46e5";
+    } else if (isCOD) {
+      statusBn = "ক্যাশ অন ডেলিভারি";
+      badgeBg = "#e0e7ff"; badgeColor = "#4338ca";
+      amountSuffix = " ( COD )"; amountColor = "#4338ca";
+    } else {
+      statusBn = "টাকা বাকি";
+      badgeBg = "#fef3c7"; badgeColor = "#d97706";
+      amountSuffix = " ( Pending )"; amountColor = "#d97706";
+    }
+
+    const qrText = [
+      "NexCart BD",
+      "#" + shortId,
+      name, phone, fullAddress,
+      productLine,
+      money(o.total),
+      paid ? "PAID" : (isCOD ? "COD" : "PENDING")
+    ].filter(Boolean).join(" | ");
+
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=" + encodeURIComponent(qrText);
+    const qrImg = new Image();
+    qrImg.crossOrigin = "anonymous";
+
+    qrImg.onload = () => {
+      try {
+        const W = 680, H = 980;
+        const c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const ctx = c.getContext("2d");
+
+        // White bg
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+
+        // ===== HEADER with wave =====
+        // Gradient header background - dark navy for NexCart
+        const g = ctx.createLinearGradient(0, 0, W, 120);
+        g.addColorStop(0, "#0B1426");
+        g.addColorStop(0.5, "#132038");
+        g.addColorStop(1, "#1a2744");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(W, 0);
+        ctx.lineTo(W, 100);
+        // wave bottom
+        ctx.quadraticCurveTo(W * 0.75, 130, W * 0.5, 110);
+        ctx.quadraticCurveTo(W * 0.25, 90, 0, 120);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cart icon circle
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.beginPath();
+        ctx.arc(70, 55, 28, 0, Math.PI * 2);
+        ctx.fill();
+        // Simple cart symbol
+        ctx.fillStyle = "#00D4C8";
+        ctx.font = "bold 22px system-ui,sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🛒", 70, 63);
+
+        // Brand text
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px system-ui,sans-serif";
+        ctx.fillText("NexCart", 110, 48);
+        ctx.fillStyle = "#00D4C8";
+        ctx.fillText("BD", 268, 48);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.font = "13px system-ui,sans-serif";
+        ctx.fillText("Everything You Need, One Cart.", 110, 72);
+
+        // ===== STATUS BADGE =====
+        ctx.textAlign = "center";
+        const badgeW = 200, badgeH = 42;
+        const bx = (W - badgeW) / 2, by = 150;
+        ctx.fillStyle = badgeBg;
+        roundRect(ctx, bx, by, badgeW, badgeH, 21);
+        ctx.fill();
+        // check / warning icon circle
+        ctx.fillStyle = badgeColor;
+        ctx.beginPath();
+        ctx.arc(bx + 28, by + 21, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 14px system-ui,sans-serif";
+        ctx.fillText(paid ? "✓" : (isCOD ? "$" : "!"), bx + 28, by + 26);
+        ctx.fillStyle = badgeColor;
+        ctx.font = "bold 17px system-ui,sans-serif";
+        ctx.fillText(statusBn, bx + badgeW / 2 + 10, by + 28);
+
+        // ===== ORDER ID =====
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px system-ui,sans-serif";
+        ctx.fillText("ORDER ID", W / 2, 230);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 44px system-ui,sans-serif";
+        ctx.fillText("#" + shortId, W / 2, 280);
+
+        // ===== CUSTOMER CARD =====
+        ctx.fillStyle = "#eef2ff";
+        roundRect(ctx, 40, 310, W - 80, 140, 20);
+        ctx.fill();
+
+        // Avatar circle
+        ctx.fillStyle = "#4f46e5";
+        ctx.beginPath();
+        ctx.arc(85, 365, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 22px system-ui,sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("👤", 85, 373);
+
+        // Name, phone, address
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 20px system-ui,sans-serif";
+        ctx.fillText(name.slice(0, 26), 125, 350);
+        ctx.fillStyle = "#475569";
+        ctx.font = "16px system-ui,sans-serif";
+        ctx.fillText("📱  " + phone, 125, 380);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "14px system-ui,sans-serif";
+        // wrap address
+        const addr = String(fullAddress || "").slice(0, 55);
+        ctx.fillText("📍  " + addr, 125, 412);
+
+        // ===== AMOUNT =====
+        ctx.fillStyle = "#f1f5f9";
+        roundRect(ctx, 40, 470, W - 80, 70, 18);
+        ctx.fill();
+        ctx.textAlign = "center";
+        ctx.fillStyle = amountColor;
+        ctx.font = "bold 36px system-ui,sans-serif";
+        ctx.fillText(money(o.total) + amountSuffix, W / 2, 515);
+
+        // ===== QR =====
+        const qs = 210;
+        const qx = (W - qs) / 2, qy = 570;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 2;
+        roundRect(ctx, qx - 14, qy - 14, qs + 28, qs + 28, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.drawImage(qrImg, qx, qy, qs, qs);
+
+        // QR hint pill
+        ctx.fillStyle = "#eef2ff";
+        roundRect(ctx, (W - 320) / 2, 810, 320, 36, 18);
+        ctx.fill();
+        ctx.fillStyle = "#4f46e5";
+        ctx.font = "14px system-ui,sans-serif";
+        ctx.fillText("▣  QR স্ক্যান করুন — সব তথ্য দেখবেন", W / 2, 833);
+
+        // ===== FOOTER =====
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(50, 870);
+        ctx.lineTo(W - 50, 870);
+        ctx.stroke();
+
+        ctx.fillStyle = "#00D4C8";
+        ctx.font = "bold 18px system-ui,sans-serif";
+        ctx.fillText("NexCart BD", W / 2, 900);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "13px system-ui,sans-serif";
+        ctx.fillText("WhatsApp: 01307-352309  ·  Everything You Need, One Cart.", W / 2, 925);
+
+        resolve(c.toDataURL("image/png", 1.0));
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    qrImg.onerror = () => {
+      try {
+        const W = 680, H = 560;
+        const c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#0B1426";
+        ctx.fillRect(0, 0, W, 90);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 28px system-ui,sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("NexCart BD", W / 2, 55);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 40px system-ui,sans-serif";
+        ctx.fillText("#" + shortId, W / 2, 180);
+        ctx.font = "20px system-ui,sans-serif";
+        ctx.fillText(name, W / 2, 240);
+        ctx.fillText(phone, W / 2, 275);
+        ctx.fillStyle = amountColor;
+        ctx.font = "bold 34px system-ui,sans-serif";
+        ctx.fillText(money(o.total) + amountSuffix, W / 2, 350);
+        ctx.fillStyle = badgeColor;
+        ctx.font = "bold 20px system-ui,sans-serif";
+        ctx.fillText(statusBn, W / 2, 420);
+        resolve(c.toDataURL("image/png"));
+      } catch (e) { reject(e); }
+    };
+    qrImg.src = qrUrl;
+  });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function showInvoicePreview(dataUrl) {
+  let prev = document.getElementById("invPreview");
+  if (prev) prev.remove();
+  prev = document.createElement("div");
+  prev.id = "invPreview";
+  prev.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;";
+  prev.innerHTML = `
+    <p style="color:#fff;font-size:15px;margin-bottom:14px;text-align:center;font-weight:600">নিচের পিক লং-প্রেস করে সেভ করুন</p>
+    <img src="${dataUrl}" style="max-width:92%;max-height:68vh;border-radius:10px;background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.4)"/>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center">
+      <a href="${dataUrl}" download="NexCart-Invoice.png" style="padding:14px 24px;background:#4f46e5;color:#fff;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px">⬇️ ডাউনলোড</a>
+      <button type="button" id="invPrevClose" style="padding:14px 24px;background:#fff;color:#0f172a;border-radius:12px;font-weight:700;border:0;cursor:pointer;font-size:15px">বন্ধ</button>
+    </div>
+  `;
+  document.body.appendChild(prev);
+  document.getElementById("invPrevClose").onclick = () => prev.remove();
+}
+
+$("downloadInvoiceBtn").addEventListener("click", async () => {
+  const btn = $("downloadInvoiceBtn");
+  if (!_currentInvoiceOrder) {
+    message("আগে ইনভয়েস খুলুন", true);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "তৈরি হচ্ছে...";
+  try {
+    const dataUrl = await makeInvoiceCanvas(_currentInvoiceOrder);
+    showInvoicePreview(dataUrl);
+    message("পিক তৈরি হয়েছে! লং-প্রেস করে সেভ করুন।");
+  } catch (err) {
+    message("ডাউনলোড ব্যর্থ: " + (err.message || err), true);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📥 পিক ডাউনলোড";
+  }
+});
+
+/* SETTINGS */
+async function loadSettings() {
+  const { data } = await db.from("store_settings").select("*");
+  const map = {};
+  (data || []).forEach(r => map[r.key] = r.value);
+  let wa = map.whatsapp;
+  if (typeof wa === "string") { try { wa = JSON.parse(wa); } catch (e) {} }
+  $("waNumber").value = (typeof wa === "string" ? wa : String(wa || "")).replace(/"/g, "");
+  paymentMethods = Array.isArray(map.payment_methods) ? map.payment_methods : [];
+  if (!paymentMethods.length) {
+    paymentMethods = [
+      { id: "cod", name: "Cash on Delivery", type: "cod", enabled: true, number: "", notice: "" },
+      { id: "bkash", name: "বিকাশ", type: "mobile_banking", enabled: true, number: "01307352309", notice: "এই নম্বরে Send Money করুন।" },
+      { id: "nagad", name: "নগদ", type: "mobile_banking", enabled: true, number: "01307352309", notice: "এই নম্বরে Send Money করুন।" }
+    ];
+  }
+  renderPm();
+}
+function renderPm() {
+  $("pmList").innerHTML = paymentMethods.map((pm, i) => `
+    <div class="pm-card" data-i="${i}">
+      <div class="row">
+        <label style="flex:1">নাম<input value="${safe(pm.name)}" data-f="name" data-i="${i}"></label>
+        <label style="width:140px">ধরন
+          <select data-f="type" data-i="${i}">
+            <option value="cod" ${pm.type === "cod" ? "selected" : ""}>COD</option>
+            <option value="mobile_banking" ${pm.type === "mobile_banking" ? "selected" : ""}>মোবাইল ব্যাংকিং</option>
+          </select>
+        </label>
+        <label style="width:80px">চালু?
+          <select data-f="enabled" data-i="${i}">
+            <option value="true" ${pm.enabled ? "selected" : ""}>হ্যাঁ</option>
+            <option value="false" ${!pm.enabled ? "selected" : ""}>না</option>
+          </select>
+        </label>
+      </div>
+      <label>নম্বর (মোবাইল ব্যাংকিং)</label>
+      <input value="${safe(pm.number || "")}" data-f="number" data-i="${i}" placeholder="01XXXXXXXXX">
+      <label>নোটিশ (ইউজার কী করবে)</label>
+      <textarea rows="2" data-f="notice" data-i="${i}">${safe(pm.notice || "")}</textarea>
+      <button class="danger" style="padding:6px 12px;font-size:12px" onclick="removePm(${i})">মুছুন</button>
+    </div>`).join("");
+  $("pmList").querySelectorAll("[data-f]").forEach(el => {
+    el.addEventListener("change", () => syncPm());
+    el.addEventListener("input", () => syncPm());
+  });
+}
+function syncPm() {
+  $("pmList").querySelectorAll(".pm-card").forEach(card => {
+    const i = Number(card.dataset.i);
+    card.querySelectorAll("[data-f]").forEach(el => {
+      const f = el.dataset.f;
+      if (f === "enabled") paymentMethods[i][f] = el.value === "true";
+      else paymentMethods[i][f] = el.value;
+    });
+  });
+}
+function removePm(i) {
+  paymentMethods.splice(i, 1);
+  renderPm();
+}
+$("addPm").addEventListener("click", () => {
+  paymentMethods.push({
+    id: "pm_" + Date.now(),
+    name: "নতুন মেথড",
+    type: "mobile_banking",
+    enabled: true,
+    number: "",
+    notice: ""
+  });
+  renderPm();
+});
+$("saveWa").addEventListener("click", async () => {
+  const v = $("waNumber").value.trim().replace(/\D/g, "");
+  if (v.length < 10) { message("সঠিক WhatsApp নম্বর দিন", true); return; }
+  const { error } = await db.from("store_settings").upsert({
+    key: "whatsapp",
+    value: JSON.stringify(v),
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message("WhatsApp নম্বর সেভ হয়েছে।");
+});
+$("savePm").addEventListener("click", async () => {
+  syncPm();
+  const { error } = await db.from("store_settings").upsert({
+    key: "payment_methods",
+    value: paymentMethods,
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message("পেমেন্ট পদ্ধতি সেভ হয়েছে।");
+});
+
+// Store URL for product share links
+$("saveStoreUrl")?.addEventListener("click", () => {
+  const v = ($("storeUrl").value || "").trim().replace(/\/$/, "");
+  if (!v || !v.startsWith("http")) {
+    message("সঠিক URL দিন (যেমন: https://nexcartbd.com)", true);
+    return;
+  }
+  localStorage.setItem("nexcart_store_url", v);
+  message("স্টোর লিংক সেভ হয়েছে। এখন পণ্যের 🔗 লিংক বাটন কাজ করবে।");
+});
+// Load saved store URL
+if ($("storeUrl")) {
+  $("storeUrl").value = localStorage.getItem("nexcart_store_url") || "";
+}
+
+db.auth.onAuthStateChange((e) => { if (e === "SIGNED_OUT") showLogin(); });
+refreshAuth();
+</script>
+</body>
+</html>
