@@ -334,15 +334,26 @@ async function loadProducts() {
   renderProducts();
 }
 function getStoreBase() {
-  // Store URL — change this to your live store link
-  return localStorage.getItem("nexcart_store_url") || "https://your-store-domain.com";
+  // Store URL — set this in Settings → স্টোর ওয়েবসাইট লিংক
+  return localStorage.getItem("nexcart_store_url") || "";
 }
 
 function copyProductLink(id) {
-  const base = getStoreBase().replace(/\/$/, "");
-  const link = base + "/?id=" + id;
+  let base = getStoreBase().trim().replace(/\/$/, "");
+  if (!base) {
+    message("আগে সেটিংস থেকে স্টোর URL সেভ করুন।\nউদাহরণ: https://yoursite.com  বা  https://yoursite.com/store.html", true);
+    return;
+  }
+  // Support both domain root and .html file
+  let link;
+  if (base.includes("?")) {
+    link = base + "&id=" + id;
+  } else {
+    link = base + "?id=" + id;
+  }
+
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(link).then(() => message("পণ্যের লিংক কপি হয়েছে:\n" + link));
+    navigator.clipboard.writeText(link).then(() => message("✅ পণ্যের লিংক কপি হয়েছে:\n" + link));
   } else {
     const ta = document.createElement("textarea");
     ta.value = link;
@@ -350,7 +361,7 @@ function copyProductLink(id) {
     ta.select();
     document.execCommand("copy");
     document.body.removeChild(ta);
-    message("পণ্যের লিংক কপি হয়েছে:\n" + link);
+    message("✅ পণ্যের লিংক কপি হয়েছে:\n" + link);
   }
 }
 
