@@ -6,6 +6,7 @@
 <title>NexCart BD — Admin</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--brand:#4f46e5;--soft:#eef2ff;--ok:#059669;--ok-bg:#d1fae5;--bad:#e11d48;--bad-bg:#ffe4e6;--warn:#d97706;--warn-bg:#fef3c7;--ship:#1d4ed8;--ship-bg:#dbeafe}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;line-height:1.5}
@@ -78,6 +79,17 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .inv-footer strong{color:#4f46e5}
 @media(max-width:700px){.grid,.stats{grid-template-columns:1fr 1fr}.products{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.stats{grid-template-columns:1fr}.products{grid-template-columns:1fr}}
+.settings-folders{display:flex;flex-direction:column;gap:10px}
+.sfolder{background:var(--card);border:1.5px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px #0f172a08}
+.sfolder-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;font-weight:800;font-size:15px;transition:background .15s}
+.sfolder-head:hover{background:var(--bg)}
+.sfolder-head .sf-icon{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.sfolder-head .sf-title{flex:1}
+.sfolder-head .sf-arrow{color:var(--muted);font-size:12px;transition:transform .2s}
+.sfolder.open .sf-arrow{transform:rotate(90deg)}
+.sfolder-body{display:none;padding:4px 16px 18px;border-top:1px solid var(--line)}
+.sfolder.open .sfolder-body{display:block}
+.sfolder-body > p.sf-hint{font-size:13px;color:var(--muted);margin:12px 0}
 </style>
 </head>
 <body>
@@ -131,21 +143,41 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
           <label>পণ্যের নাম</label>
           <input name="name" required maxlength="180" placeholder="যেমন: Wireless Earbuds Pro">
           <label>ক্যাটাগরি</label>
-          <input name="category" required value="অন্যান্য" maxlength="80" list="catList">
-          <datalist id="catList">
-            <option value="মোবাইল"><option value="অডিও"><option value="কম্পিউটার">
-            <option value="অ্যাক্সেসরিজ"><option value="গেমিং"><option value="চার্জার"><option value="স্মার্ট ডিভাইস">
-          </datalist>
+          <select id="categorySelect" style="margin-bottom:6px">
+            <option value="">— সিলেক্ট করুন —</option>
+            <option value="__new__">+ নতুন ক্যাটাগরি লিখুন</option>
+          </select>
+          <input name="category" id="categoryInput" required value="অন্যান্য" maxlength="80" placeholder="ক্যাটাগরি নাম" style="display:none">
+          <p style="font-size:11px;color:var(--muted);margin:0 0 10px">আগের ক্যাটাগরি সিলেক্ট করুন। নতুন হলে “নতুন ক্যাটাগরি লিখুন” বেছে নাম লিখুন।</p>
           <div class="grid">
             <div><label>বিক্রয় মূল্য (৳)</label><input name="price" type="number" min="0" step="0.01" required></div>
             <div><label>আগের মূল্য (৳)</label><input name="old_price" type="number" min="0" step="0.01" placeholder="অফার থাকলে"></div>
           </div>
           <div class="grid">
-            <div><label>স্টক</label><input name="stock" type="number" min="0" step="1" value="0" required></div>
+            <div><label>স্টক</label><input name="stock" type="number" min="0" step="1" value="0" required id="baseStockInput"><p style="font-size:11px;color:var(--muted);margin:0">ভ্যারিয়েন্ট থাকলে নিচের টেবিলের স্টক ব্যবহার হবে</p></div>
             <div><label>ফিচার্ড?</label><select name="featured"><option value="false">না</option><option value="true">হ্যাঁ</option></select></div>
           </div>
           <label>বিস্তারিত</label>
           <textarea name="description" rows="3" placeholder="পণ্যের বিবরণ লিখুন..."></textarea>
+
+          <!-- Variants -->
+          <div style="border:1.5px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:var(--bg)">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:700;margin-bottom:10px">
+              <input type="checkbox" id="hasVariants" style="width:auto;margin:0">
+              এই পণ্যে সাইজ / কালার / অন্য অপশন আছে?
+            </label>
+            <div id="variantsPanel" class="hidden">
+              <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">প্রিসেট থেকে সিলেক্ট করুন, বা নিজে নতুন অপশন যোগ করুন। প্রতিটি কম্বিনেশনের স্টক আলাদা দিন।</p>
+              <div id="variantOptionsList"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+                <button type="button" class="secondary" id="addVariantOption" style="font-size:13px">+ নতুন অপশন</button>
+                <button type="button" class="secondary" id="addPresetSize" style="font-size:13px">+ সাইজ (প্রিসেট)</button>
+                <button type="button" class="secondary" id="addPresetColor" style="font-size:13px">+ কালার (প্রিসেট)</button>
+              </div>
+              <div id="variantSkuTable" style="margin-top:12px"></div>
+            </div>
+          </div>
+
           <label>ছবি (ফাইল)</label>
           <input id="images" type="file" accept="image/*" multiple>
           <label>অথবা ছবির URL (প্রতি লাইনে একটি)</label>
@@ -165,7 +197,10 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 
     <div id="tab-orders" class="hidden">
       <section class="card">
-        <h2 style="margin:0 0 14px">অর্ডার পরিচালনা</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+          <h2 style="margin:0">অর্ডার পরিচালনা</h2>
+          <button class="primary" id="downloadNewOrdersPdf" style="font-size:13px">📄 নতুন অর্ডার ইনভয়েস PDF (৪×৬)</button>
+        </div>
         
         <!-- Status Tabs -->
         <div class="order-status-tabs" id="orderStatusTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
@@ -192,26 +227,145 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
     </div>
 
     <div id="tab-settings" class="hidden">
-      <section class="card">
-        <h2>স্টোর ওয়েবসাইট লিংক</h2>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:10px">পণ্যের শেয়ার লিংক তৈরি করতে আপনার ইউজার সাইটের লিংক দিন (যেমন: https://nexcartbd.com)</p>
-        <label>স্টোর URL</label>
-        <input id="storeUrl" placeholder="https://your-store.com">
-        <button class="primary" id="saveStoreUrl">স্টোর লিংক সেভ করুন</button>
-      </section>
-      <section class="card">
-        <h2>WhatsApp নম্বর</h2>
-        <label>নম্বর (দেশ কোডসহ, যেমন 8801307352309)</label>
-        <input id="waNumber" placeholder="8801307352309">
-        <button class="primary" id="saveWa">WhatsApp সেভ করুন</button>
-      </section>
-      <section class="card">
-        <h2>পেমেন্ট পদ্ধতি</h2>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">COD-এ নম্বর লাগে না। মোবাইল ব্যাংকিং-এ নম্বর + নোটিশ দিন।</p>
-        <div id="pmList"></div>
-        <button class="secondary" id="addPm" style="margin-top:8px">+ নতুন পেমেন্ট মেথড</button>
-        <button class="primary" id="savePm" style="margin-top:8px;margin-left:8px">পেমেন্ট সেভ করুন</button>
-      </section>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 14px">নিচের ফোল্ডারে ক্লিক করে সেই সেটিংস খুলুন।</p>
+      <div class="settings-folders" id="settingsFolders">
+
+        <div class="sfolder open" data-folder="site">
+          <div class="sfolder-head"><span class="sf-icon">🌐</span><span class="sf-title">ওয়েবসাইট অন / অফ</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">অফ করলে ইউজার সাইটে শুধু “বন্ধ আছে” মেসেজ দেখাবে। অর্ডার নেওয়া যাবে না।</p>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:15px">
+                <input type="radio" name="siteStatus" id="siteOpen" value="open" checked style="width:auto;margin:0">
+                <span style="color:var(--ok)">🟢 অন (খোলা)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:15px">
+                <input type="radio" name="siteStatus" id="siteClosed" value="closed" style="width:auto;margin:0">
+                <span style="color:var(--bad)">🔴 অফ (বন্ধ)</span>
+              </label>
+            </div>
+            <label>বন্ধ থাকলে যে মেসেজ দেখাবে</label>
+            <textarea id="siteClosedMsg" rows="2">আমরা সাময়িকভাবে বন্ধ আছি। শীঘ্রই ফিরে আসছি। ধন্যবাদ।</textarea>
+            <button class="primary" id="saveSiteStatus">সাইট স্ট্যাটাস সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="store">
+          <div class="sfolder-head"><span class="sf-icon">🔗</span><span class="sf-title">স্টোর ওয়েবসাইট লিংক</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">পণ্যের শেয়ার লিংক তৈরি করতে ইউজার সাইটের লিংক দিন।</p>
+            <label>স্টোর URL</label>
+            <input id="storeUrl" placeholder="https://your-store.com">
+            <button class="primary" id="saveStoreUrl">স্টোর লিংক সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="favicon">
+          <div class="sfolder-head"><span class="sf-icon">🔖</span><span class="sf-title">ফ্যাভিকন (Favicon)</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">ব্রাউজার ট্যাবের ছোট আইকন। PNG / JPG / ICO / SVG (সর্বোচ্চ ১MB)।</p>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+              <div id="faviconPreviewBox" style="width:48px;height:48px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+                <img id="faviconPreview" src="" alt="" style="width:100%;height:100%;object-fit:contain;display:none">
+                <span id="faviconPlaceholder" style="font-size:11px;color:var(--muted);text-align:center;padding:4px">কোনো<br>আইকন নেই</span>
+              </div>
+              <div style="flex:1;min-width:180px">
+                <label>ফ্যাভিকন ছবি</label>
+                <input type="file" id="faviconFile" accept="image/*,.ico" style="margin-top:4px">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="primary" id="saveFavicon">ফ্যাভিকন সেভ করুন</button>
+              <button class="danger" id="removeFavicon" style="display:none">ফ্যাভিকন মুছুন</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="whatsapp">
+          <div class="sfolder-head"><span class="sf-icon">💬</span><span class="sf-title">WhatsApp নম্বর</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <label>নম্বর (দেশ কোডসহ, যেমন 8801307352309)</label>
+            <input id="waNumber" placeholder="8801307352309">
+            <button class="primary" id="saveWa">WhatsApp সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="shipping">
+          <div class="sfolder-head"><span class="sf-icon">🚚</span><span class="sf-title">ডেলিভারি চার্জ</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">ইউজার সাইটে জেলা অনুযায়ী এই চার্জ দেখাবে।</p>
+            <div class="row" style="display:flex;gap:12px;flex-wrap:wrap">
+              <label style="flex:1;min-width:140px">ঢাকা (৳)
+                <input id="shipDhaka" type="number" min="0" step="1" value="60" placeholder="60">
+              </label>
+              <label style="flex:1;min-width:140px">ঢাকার বাইরে (৳)
+                <input id="shipOutside" type="number" min="0" step="1" value="120" placeholder="120">
+              </label>
+            </div>
+            <button class="primary" id="saveShipping" style="margin-top:10px">ডেলিভারি চার্জ সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="payment">
+          <div class="sfolder-head"><span class="sf-icon">💳</span><span class="sf-title">পেমেন্ট পদ্ধতি</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">COD-এ নম্বর লাগে না। মোবাইল ব্যাংকিং-এ নম্বর + নোটিশ দিন।</p>
+            <div id="pmList"></div>
+            <button class="secondary" id="addPm" style="margin-top:8px">+ নতুন পেমেন্ট মেথড</button>
+            <button class="primary" id="savePm" style="margin-top:8px;margin-left:8px">পেমেন্ট সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="categories">
+          <div class="sfolder-head"><span class="sf-icon">📁</span><span class="sf-title">ক্যাটাগরি ও আইকন</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">ক্যাটাগরি ম্যানেজ ও আইকন আপলোড। পিক না দিলে ডিফল্ট আইকন। পণ্য সেভ করলে নতুন ক্যাটাগরি অটো যোগ হয়।</p>
+            <div id="catAdminList"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:flex-end">
+              <label style="flex:1;min-width:140px">নতুন ক্যাটাগরি নাম
+                <input id="newCatName" placeholder="যেমন: Logo" style="margin-top:4px">
+              </label>
+              <button type="button" class="secondary" id="addCatBtn">+ যোগ</button>
+              <button type="button" class="primary" id="saveCatsBtn">ক্যাটাগরি সেভ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="footer">
+          <div class="sfolder-head"><span class="sf-icon">🦶</span><span class="sf-title">ফুটার সেটিংস</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">ইউজার সাইটের ফুটার লেখা ও লিংক।</p>
+            <label>ট্যাগলাইন (লাইন ১)</label>
+            <input id="ftTagline1" placeholder="Your Everyday Shopping Destination.">
+            <label>ট্যাগলাইন (লাইন ২)</label>
+            <input id="ftTagline2" placeholder="Shop smart. Shop easy. Shop with confidence.">
+            <div class="grid">
+              <div>
+                <label>ইমেইল</label>
+                <input id="ftEmail" placeholder="nexcartbd.shop@gmail.com">
+              </div>
+              <div>
+                <label>লোকেশন</label>
+                <input id="ftLocation" placeholder="Bangladesh">
+              </div>
+            </div>
+            <label>Facebook পেজ লিংক</label>
+            <input id="ftFacebook" placeholder="https://facebook.com/...">
+            <label>Instagram লিংক</label>
+            <input id="ftInstagram" placeholder="https://instagram.com/...">
+            <label>YouTube লিংক</label>
+            <input id="ftYoutube" placeholder="https://youtube.com/...">
+            <label>কুইক লিংক (প্রতি লাইনে: লেবেল | লিংক)</label>
+            <textarea id="ftQuick" rows="4" placeholder="হোম | #home"></textarea>
+            <label>কাস্টমার সার্ভিস (প্রতি লাইনে: লেবেল | লিংক)</label>
+            <textarea id="ftService" rows="4" placeholder="আমার অর্ডার | #orders"></textarea>
+            <label>আমাদের সম্পর্কে (প্রতি লাইনে: লেবেল | লিংক)</label>
+            <textarea id="ftAbout" rows="3" placeholder="প্রাইভেসি পলিসি | #"></textarea>
+            <button class="primary" id="saveFooterBtn" style="margin-top:8px">ফুটার সেভ করুন</button>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 </main>
@@ -237,6 +391,249 @@ const money = n => "৳" + Number(n || 0).toLocaleString("en-US");
 const safe = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 let products = [], orders = [], existingImages = [], paymentMethods = [], orderFilter = "all";
+let variantOptions = []; // [{ name, values: [] }]
+let variantSkuStock = {}; // { "S|কালো": 5 }
+
+const VARIANT_PRESETS = {
+  "সাইজ": ["S", "M", "L", "XL", "XXL", "3XL"],
+  "কালার": ["কালো", "সাদা", "লাল", "নীল", "সবুজ", "হলুদ", "ধূসর", "বেইজ", "পিঙ্ক", "পার্পল"]
+};
+
+function hasProductVariants(p) {
+  return p && p.variants && p.variants.enabled && Array.isArray(p.variants.options) && p.variants.options.length > 0;
+}
+function productTotalStock(p) {
+  if (!hasProductVariants(p)) return Number(p.stock) || 0;
+  const skus = p.variants.skus || [];
+  return skus.reduce((s, x) => s + (Number(x.stock) || 0), 0);
+}
+function variantKeyFromSelections(options, selections) {
+  return options.map(o => selections[o.name] || "").join("|");
+}
+function variantLabelFromKey(options, key) {
+  const parts = String(key || "").split("|");
+  return options.map((o, i) => o.name + ": " + (parts[i] || "—")).join(" · ");
+}
+function cartesianKeys(options) {
+  if (!options.length) return [];
+  let result = [[]];
+  options.forEach(opt => {
+    const vals = (opt.values || []).filter(Boolean);
+    if (!vals.length) return;
+    const next = [];
+    result.forEach(prev => vals.forEach(v => next.push([...prev, v])));
+    result = next;
+  });
+  return result.map(arr => arr.join("|"));
+}
+function renderVariantOptionsUI() {
+  const box = $("variantOptionsList");
+  if (!box) return;
+  if (!variantOptions.length) {
+    box.innerHTML = `<p style="font-size:13px;color:var(--muted)">এখনো কোনো অপশন নেই। নিচের বাটন দিয়ে সাইজ/কালার যোগ করুন।</p>`;
+  } else {
+    box.innerHTML = variantOptions.map((opt, i) => `
+      <div class="pm-card" style="margin-bottom:10px" data-voi="${i}">
+        <div class="row">
+          <label style="flex:1">অপশনের নাম
+            <input value="${safe(opt.name)}" data-vo-name="${i}" placeholder="যেমন: সাইজ">
+          </label>
+          <button type="button" class="danger" style="padding:8px 12px;font-size:12px;align-self:flex-end" data-vo-remove="${i}">মুছুন</button>
+        </div>
+        <label>মানসমূহ (কমা দিয়ে বা নিচে ক্লিক করে যোগ)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0" data-vo-chips="${i}">
+          ${(opt.values || []).map((v, vi) => `
+            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--soft);color:var(--brand);padding:5px 10px;border-radius:99px;font-size:12px;font-weight:600">
+              ${safe(v)}
+              <button type="button" data-vo-delval="${i}" data-vi="${vi}" style="border:0;background:transparent;cursor:pointer;color:var(--bad);font-size:14px;padding:0;line-height:1">×</button>
+            </span>`).join("")}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <input data-vo-newval="${i}" placeholder="নতুন মান লিখে Enter" style="flex:1;min-width:140px;margin:0">
+          <button type="button" class="secondary" style="padding:8px 12px;font-size:12px" data-vo-addval="${i}">যোগ</button>
+        </div>
+        ${VARIANT_PRESETS[opt.name] ? `
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">
+            <span style="font-size:11px;color:var(--muted);width:100%">প্রিসেট:</span>
+            ${VARIANT_PRESETS[opt.name].map(pv => `
+              <button type="button" class="secondary" style="padding:4px 10px;font-size:11px" data-vo-preset="${i}" data-pval="${safe(pv)}">${safe(pv)}</button>
+            `).join("")}
+          </div>` : ""}
+      </div>`).join("");
+  }
+  // events
+  box.querySelectorAll("[data-vo-name]").forEach(el => {
+    el.addEventListener("change", () => {
+      const i = Number(el.dataset.voName);
+      variantOptions[i].name = el.value.trim() || "অপশন";
+      renderVariantSkuTable();
+    });
+  });
+  box.querySelectorAll("[data-vo-remove]").forEach(el => {
+    el.addEventListener("click", () => {
+      variantOptions.splice(Number(el.dataset.voRemove), 1);
+      renderVariantOptionsUI();
+      renderVariantSkuTable();
+    });
+  });
+  box.querySelectorAll("[data-vo-delval]").forEach(el => {
+    el.addEventListener("click", () => {
+      const i = Number(el.dataset.voDelval);
+      const vi = Number(el.dataset.vi);
+      variantOptions[i].values.splice(vi, 1);
+      renderVariantOptionsUI();
+      renderVariantSkuTable();
+    });
+  });
+  const addVal = (i, val) => {
+    val = String(val || "").trim();
+    if (!val) return;
+    if (!variantOptions[i].values.includes(val)) variantOptions[i].values.push(val);
+    renderVariantOptionsUI();
+    renderVariantSkuTable();
+  };
+  box.querySelectorAll("[data-vo-addval]").forEach(el => {
+    el.addEventListener("click", () => {
+      const i = Number(el.dataset.voAddval);
+      const inp = box.querySelector(`[data-vo-newval="${i}"]`);
+      addVal(i, inp?.value);
+      if (inp) inp.value = "";
+    });
+  });
+  box.querySelectorAll("[data-vo-newval]").forEach(el => {
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addVal(Number(el.dataset.voNewval), el.value);
+        el.value = "";
+      }
+    });
+  });
+  box.querySelectorAll("[data-vo-preset]").forEach(el => {
+    el.addEventListener("click", () => {
+      addVal(Number(el.dataset.voPreset), el.dataset.pval);
+    });
+  });
+}
+function renderVariantSkuTable() {
+  const box = $("variantSkuTable");
+  if (!box) return;
+  const keys = cartesianKeys(variantOptions);
+  if (!keys.length) {
+    box.innerHTML = `<p style="font-size:13px;color:var(--muted)">অপশন ও মান যোগ করলে এখানে স্টক টেবিল আসবে।</p>`;
+    return;
+  }
+  // preserve existing stock inputs
+  box.querySelectorAll("[data-sku-key]").forEach(inp => {
+    variantSkuStock[inp.dataset.skuKey] = Number(inp.value) || 0;
+  });
+  box.innerHTML = `
+    <label style="font-weight:700;margin-bottom:8px;display:block">কম্বিনেশন অনুযায়ী স্টক (${keys.length}টি)</label>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>কম্বিনেশন</th><th style="width:120px">স্টক</th></tr></thead>
+        <tbody>
+          ${keys.map(k => {
+            const label = variantLabelFromKey(variantOptions, k);
+            const st = variantSkuStock[k] ?? 0;
+            return `<tr>
+              <td style="font-size:13px">${safe(label)}</td>
+              <td><input type="number" min="0" step="1" value="${st}" data-sku-key="${safe(k)}" style="margin:0;padding:8px"></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">মোট স্টক: <b id="variantStockSum">${keys.reduce((s, k) => s + (Number(variantSkuStock[k]) || 0), 0)}</b></p>
+  `;
+  box.querySelectorAll("[data-sku-key]").forEach(inp => {
+    inp.addEventListener("input", () => {
+      variantSkuStock[inp.dataset.skuKey] = Number(inp.value) || 0;
+      const sumEl = $("variantStockSum");
+      if (sumEl) sumEl.textContent = Object.values(variantSkuStock).reduce((a, b) => a + (Number(b) || 0), 0);
+    });
+  });
+}
+function collectVariantsPayload() {
+  const enabled = $("hasVariants")?.checked;
+  if (!enabled || !variantOptions.length) return null;
+  // sync names
+  document.querySelectorAll("[data-vo-name]").forEach(el => {
+    const i = Number(el.dataset.voName);
+    if (variantOptions[i]) variantOptions[i].name = el.value.trim() || "অপশন";
+  });
+  // sync stocks from inputs
+  document.querySelectorAll("[data-sku-key]").forEach(inp => {
+    variantSkuStock[inp.dataset.skuKey] = Number(inp.value) || 0;
+  });
+  const options = variantOptions
+    .map(o => ({ name: o.name, values: (o.values || []).filter(Boolean) }))
+    .filter(o => o.name && o.values.length);
+  if (!options.length) return null;
+  const keys = cartesianKeys(options);
+  const skus = keys.map(k => ({ key: k, stock: Number(variantSkuStock[k]) || 0 }));
+  return { enabled: true, options, skus };
+}
+function loadVariantsIntoForm(variants) {
+  variantOptions = [];
+  variantSkuStock = {};
+  if (variants && variants.enabled && Array.isArray(variants.options)) {
+    variantOptions = variants.options.map(o => ({
+      name: o.name || "অপশন",
+      values: [...(o.values || [])]
+    }));
+    (variants.skus || []).forEach(s => {
+      variantSkuStock[s.key] = Number(s.stock) || 0;
+    });
+    if ($("hasVariants")) $("hasVariants").checked = true;
+    $("variantsPanel")?.classList.remove("hidden");
+  } else {
+    if ($("hasVariants")) $("hasVariants").checked = false;
+    $("variantsPanel")?.classList.add("hidden");
+  }
+  renderVariantOptionsUI();
+  renderVariantSkuTable();
+}
+function setupVariantUI() {
+  $("hasVariants")?.addEventListener("change", () => {
+    const on = $("hasVariants").checked;
+    $("variantsPanel")?.classList.toggle("hidden", !on);
+    if (on && !variantOptions.length) {
+      // start empty — user picks presets
+    }
+    renderVariantOptionsUI();
+    renderVariantSkuTable();
+  });
+  $("addVariantOption")?.addEventListener("click", () => {
+    variantOptions.push({ name: "অপশন", values: [] });
+    renderVariantOptionsUI();
+    renderVariantSkuTable();
+  });
+  $("addPresetSize")?.addEventListener("click", () => {
+    const existing = variantOptions.find(o => o.name === "সাইজ");
+    if (existing) {
+      VARIANT_PRESETS["সাইজ"].forEach(v => {
+        if (!existing.values.includes(v)) existing.values.push(v);
+      });
+    } else {
+      variantOptions.push({ name: "সাইজ", values: [...VARIANT_PRESETS["সাইজ"]] });
+    }
+    renderVariantOptionsUI();
+    renderVariantSkuTable();
+  });
+  $("addPresetColor")?.addEventListener("click", () => {
+    const existing = variantOptions.find(o => o.name === "কালার");
+    if (existing) {
+      VARIANT_PRESETS["কালার"].forEach(v => {
+        if (!existing.values.includes(v)) existing.values.push(v);
+      });
+    } else {
+      variantOptions.push({ name: "কালার", values: [...VARIANT_PRESETS["কালার"]] });
+    }
+    renderVariantOptionsUI();
+    renderVariantSkuTable();
+  });
+}
 
 function message(text, error = false) {
   $("message").textContent = text;
@@ -291,9 +688,51 @@ async function refreshAuth() {
     }
     showDashboard();
     await Promise.all([loadProducts(), loadOrders(), loadSettings()]);
+    setupAdminRealtime();
   } catch (err) {
     showLogin();
     message("অ্যাক্সেস ব্যর্থ: " + err.message, true);
+  }
+}
+
+let _adminRealtimeReady = false;
+function setupAdminRealtime() {
+  if (_adminRealtimeReady) return;
+  _adminRealtimeReady = true;
+  try {
+    db.channel("nexcart-admin-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (payload) => {
+        loadOrders();
+        const name = payload?.new?.customer_name || "নতুন কাস্টমার";
+        message("🔔 নতুন অর্ডার এসেছে: " + name);
+        // Optional browser notification
+        try {
+          if (Notification && Notification.permission === "granted") {
+            new Notification("NexCart BD — নতুন অর্ডার", { body: name });
+          } else if (Notification && Notification.permission !== "denied") {
+            Notification.requestPermission();
+          }
+        } catch (e) {}
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, () => {
+        loadOrders();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, () => {
+        loadOrders();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => {
+        loadProducts();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "store_settings" }, () => {
+        loadSettings();
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Admin realtime connected");
+        }
+      });
+  } catch (err) {
+    console.warn("Realtime setup failed:", err);
   }
 }
 
@@ -370,8 +809,8 @@ function renderProducts() {
     <article class="item">
       <img src="${safe(p.images?.[0] || "https://placehold.co/400x250?text=Product")}" alt="" onerror="this.src='https://placehold.co/400x250?text=No+Image'">
       <b>${safe(p.name)}</b>
-      <p>${safe(p.category)} · ${money(p.price)} · স্টক ${p.stock}</p>
-      <p>${p.active ? "✅ সক্রিয়" : "⏸ নিষ্ক্রিয়"}${p.featured ? " · ⭐ ফিচার্ড" : ""}</p>
+      <p>${safe(p.category)} · ${money(p.price)} · স্টক ${productTotalStock(p)}</p>
+      <p>${p.active ? "✅ সক্রিয়" : "⏸ নিষ্ক্রিয়"}${p.featured ? " · ⭐ ফিচার্ড" : ""}${hasProductVariants(p) ? " · 🏷️ ভ্যারিয়েন্ট" : ""}</p>
       <div class="actions">
         <button class="secondary" onclick="editProduct('${safe(p.id)}')">সম্পাদনা</button>
         <button class="success-btn" onclick="copyProductLink('${safe(p.id)}')" style="font-size:12px">🔗 লিংক</button>
@@ -382,12 +821,20 @@ function renderProducts() {
 function resetForm() {
   $("productForm").reset();
   $("productForm").elements.id.value = "";
-  $("productForm").elements.category.value = "অন্যান্য";
+  $("productForm").elements.category.value = "";
   $("productForm").elements.stock.value = "0";
   existingImages = [];
   $("images").value = "";
   $("currentImages").textContent = "";
   $("formTitle").textContent = "নতুন পণ্য যোগ করুন";
+  variantOptions = [];
+  variantSkuStock = {};
+  if ($("hasVariants")) $("hasVariants").checked = false;
+  $("variantsPanel")?.classList.add("hidden");
+  renderVariantOptionsUI();
+  renderVariantSkuTable();
+  if ($("categoryInput")) $("categoryInput").value = "";
+  refreshCatDatalist();
 }
 function editProduct(id) {
   const p = products.find(x => x.id === id);
@@ -405,6 +852,21 @@ function editProduct(id) {
   existingImages = [...(p.images || [])];
   $("currentImages").textContent = "বর্তমান ছবি: " + existingImages.length + "টি";
   $("formTitle").textContent = "পণ্য সম্পাদনা";
+  loadVariantsIntoForm(p.variants);
+  refreshCatDatalist();
+  const cat = p.category || "অন্যান্য";
+  const sel = $("categorySelect");
+  if (sel) {
+    if ([...sel.options].some(o => o.value === cat)) {
+      sel.value = cat;
+      $("categoryInput").style.display = "none";
+      $("categoryInput").value = cat;
+    } else {
+      sel.value = "__new__";
+      $("categoryInput").style.display = "block";
+      $("categoryInput").value = cat;
+    }
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 async function uploadImages(files) {
@@ -433,15 +895,21 @@ $("productForm").addEventListener("submit", async e => {
     const uploaded = await uploadImages(Array.from($("images").files || []));
     const urls = String(f.get("imageUrls") || "").split(/\r?\n/).map(x => x.trim()).filter(Boolean);
     const images = [...existingImages, ...uploaded, ...urls];
+    const variants = collectVariantsPayload();
+    let stockVal = Number(f.get("stock"));
+    if (variants && variants.skus) {
+      stockVal = variants.skus.reduce((s, x) => s + (Number(x.stock) || 0), 0);
+    }
     const payload = {
       name: String(f.get("name")).trim(),
       category: String(f.get("category")).trim(),
       price: Number(f.get("price")),
       old_price: f.get("old_price") ? Number(f.get("old_price")) : null,
       description: String(f.get("description") || "").trim(),
-      stock: Number(f.get("stock")),
+      stock: stockVal,
       featured: f.get("featured") === "true",
       images,
+      variants: variants,
       active: true
     };
     const id = String(f.get("id") || "");
@@ -449,6 +917,7 @@ $("productForm").addEventListener("submit", async e => {
       ? await db.from("products").update(payload).eq("id", id).select().single()
       : await db.from("products").insert(payload).select().single();
     if (result.error) throw result.error;
+    await ensureCategorySaved(payload.category);
     resetForm();
     await loadProducts();
     message("পণ্য সংরক্ষিত হয়েছে।");
@@ -568,6 +1037,7 @@ function renderOrders() {
       </td>
       <td>
         <button class="success-btn" style="padding:6px 10px;font-size:12px;margin-bottom:4px;display:block;width:100%" onclick="openInvoice('${safe(o.id)}')">📄 ইনভয়েস</button>
+        <button class="secondary" style="padding:6px 10px;font-size:12px;margin-bottom:4px;display:block;width:100%" onclick="downloadDeliverySlip('${safe(o.id)}')">📄 PDF (৪×৬)</button>
         <button class="danger" style="padding:6px 10px;font-size:12px;display:block;width:100%" onclick="deleteOrder('${safe(o.id)}')">মুছুন</button>
       </td>
     </tr>`;
@@ -617,6 +1087,226 @@ async function deleteOrder(id) {
   message("অর্ডার মুছে ফেলা হয়েছে।");
 }
 
+/* ========== DELIVERY SLIP PDF — 4x6 inch (Canvas for Bengali text) ========== */
+function getJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+  if (window.jsPDF) return window.jsPDF;
+  return null;
+}
+
+function wrapCanvasText(ctx, text, maxWidth) {
+  const words = String(text || "").split(/\s+/);
+  const lines = [];
+  let line = "";
+  words.forEach(w => {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = w;
+    } else line = test;
+  });
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function renderSlipCanvas(o) {
+  // 4x6 inch at 150 DPI for clear print
+  const DPI = 150;
+  const W = Math.round(4 * DPI);
+  const H = Math.round(6 * DPI);
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext("2d");
+  const pad = 28;
+  const maxTextW = W - pad * 2;
+
+  const items = Array.isArray(o.items) ? o.items : [];
+  const paid = isPaid(o);
+  const isCOD = /cash on delivery|cod/i.test(o.payment_method || "");
+  const shortId = String(o.id).slice(0, 8).toUpperCase();
+  const fullAddress = o.address || [o.upazila, o.district].filter(Boolean).join(", ");
+  const phone = o.phone || "";
+  const name = o.customer_name || "—";
+
+  let payText = "পেন্ডিং";
+  let payColor = "#d97706";
+  if (paid) { payText = "পেইড"; payColor = "#059669"; }
+  else if (isCOD) { payText = "ক্যাশ অন ডেলিভারি"; payColor = "#4338ca"; }
+
+  // White background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  ctx.fillStyle = "#0B1426";
+  ctx.fillRect(0, 0, W, 78);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 28px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("NexCart", pad, 36);
+  const nw = ctx.measureText("NexCart").width;
+  ctx.fillStyle = "#00D4C8";
+  ctx.fillText("BD", pad + nw + 6, 36);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "16px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText("ডেলিভারি স্লিপ", pad, 60);
+
+  let y = 110;
+
+  // Order ID
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "bold 14px system-ui, sans-serif";
+  ctx.fillText("ORDER ID", W / 2, y);
+  y += 36;
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 42px system-ui, sans-serif";
+  ctx.fillText("#" + shortId, W / 2, y);
+  y += 24;
+
+  // Line
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(pad, y);
+  ctx.lineTo(W - pad, y);
+  ctx.stroke();
+  y += 32;
+
+  // Customer
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 15px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText("কাস্টমার", pad, y);
+  y += 30;
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 26px system-ui, 'Noto Sans Bengali', sans-serif";
+  const nameLines = wrapCanvasText(ctx, name, maxTextW);
+  nameLines.forEach(ln => { ctx.fillText(ln, pad, y); y += 30; });
+
+  // Phone — large
+  ctx.fillStyle = "#4f46e5";
+  ctx.font = "bold 28px system-ui, sans-serif";
+  ctx.fillText("📞 " + phone, pad, y);
+  y += 34;
+
+  // Address
+  ctx.fillStyle = "#334155";
+  ctx.font = "20px system-ui, 'Noto Sans Bengali', sans-serif";
+  const addrLines = wrapCanvasText(ctx, "📍 " + fullAddress, maxTextW);
+  addrLines.forEach(ln => { ctx.fillText(ln, pad, y); y += 26; });
+  y += 10;
+
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.beginPath();
+  ctx.moveTo(pad, y);
+  ctx.lineTo(W - pad, y);
+  ctx.stroke();
+  y += 28;
+
+  // Products
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 15px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText("পণ্য", pad, y);
+  y += 28;
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "20px system-ui, 'Noto Sans Bengali', sans-serif";
+  if (!items.length) {
+    ctx.fillText("— কোনো পণ্য নেই", pad, y);
+    y += 26;
+  } else {
+    items.forEach((it, idx) => {
+      if (y > H - 200) return;
+      const line = (idx + 1) + ". " + (it.name || "পণ্য") + "  × " + (it.quantity || 1);
+      const lines = wrapCanvasText(ctx, line, maxTextW);
+      lines.forEach(ln => { ctx.fillText(ln, pad, y); y += 26; });
+      y += 4;
+    });
+  }
+  y += 12;
+
+  // Total box
+  const boxH = 110;
+  ctx.fillStyle = "#f1f5f9";
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(pad, y, maxTextW, boxH, 12);
+    ctx.fill();
+  } else {
+    ctx.fillRect(pad, y, maxTextW, boxH);
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 16px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText("মোট টাকা", W / 2, y + 28);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 36px system-ui, sans-serif";
+  ctx.fillText(money(o.total), W / 2, y + 68);
+
+  ctx.fillStyle = payColor;
+  ctx.font = "bold 18px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText(payText, W / 2, y + 94);
+
+  // Footer
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "14px system-ui, 'Noto Sans Bengali', sans-serif";
+  ctx.fillText("ডেলিভারির আগে কাস্টমারকে কল করুন  ·  NexCart BD", W / 2, H - 24);
+
+  return c;
+}
+
+async function downloadOrdersPdf(orderList, filename) {
+  const JsPDF = getJsPDF();
+  if (!JsPDF) {
+    message("PDF লাইব্রেরি লোড হয়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।", true);
+    return;
+  }
+  if (!orderList || !orderList.length) {
+    message("কোনো অর্ডার নেই।", true);
+    return;
+  }
+
+  message("PDF তৈরি হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন।");
+  const pageW = 4;
+  const pageH = 6;
+  const doc = new JsPDF({ orientation: "portrait", unit: "in", format: [pageW, pageH] });
+
+  try {
+    for (let i = 0; i < orderList.length; i++) {
+      if (i > 0) doc.addPage([pageW, pageH]);
+      // Same HD invoice design as the pic download
+      const dataUrl = await makeInvoiceCanvas(orderList[i]);
+      doc.addImage(dataUrl, "PNG", 0, 0, pageW, pageH);
+    }
+    doc.save(filename || "NexCart-Invoices.pdf");
+    message(orderList.length + "টি ইনভয়েস PDF ডাউনলোড হয়েছে (৪×৬ ইঞ্চি, HD)।");
+  } catch (err) {
+    console.error(err);
+    message("PDF তৈরি ব্যর্থ: " + (err.message || err), true);
+  }
+}
+
+function downloadDeliverySlip(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) { message("অর্ডার পাওয়া যায়নি", true); return; }
+  const shortId = String(o.id).slice(0, 8).toUpperCase();
+  downloadOrdersPdf([o], "NexCart-Invoice-" + shortId + ".pdf");
+}
+
+document.getElementById("downloadNewOrdersPdf")?.addEventListener("click", () => {
+  const list = orders.filter(o => o.status === "নতুন");
+  if (!list.length) {
+    message("এখন কোনো নতুন অর্ডার নেই।", true);
+    return;
+  }
+  downloadOrdersPdf(list, "NexCart-New-Orders-" + new Date().toISOString().slice(0, 10) + ".pdf");
+});
+
 /* ========== INVOICE — Pure Canvas (no html2canvas) ========== */
 let _currentInvoiceOrder = null;
 
@@ -660,7 +1350,7 @@ function openInvoice(id) {
           <path d="M7.16 14H18.41C18.92 14 19.36 13.64 19.47 13.14L20.95 6.14C21.02 5.82 20.95 5.49 20.75 5.24C20.55 5 20.24 4.85 19.91 4.85H6.21L5.77 2.82C5.66 2.33 5.22 2 4.71 2H2V4H4.21L6.71 15.47C6.82 15.97 7.26 16.33 7.77 16.33H19V14.33H8.21L7.16 14Z" fill="#00D4C8"/>
         </svg>
         <div>
-          <div style="font-size:20px;font-weight:900;text-align:left">NexCart <span style="color:#00D4C8">BD</span></div>
+          <div style="font-size:20px;font-weight:900;text-align:left;letter-spacing:-0.3px">NexCart<span style="color:#00D4C8;margin-left:4px">BD</span></div>
           <div style="font-size:11px;opacity:.85;text-align:left">Everything You Need, One Cart.</div>
         </div>
       </div>
@@ -683,7 +1373,7 @@ function openInvoice(id) {
       </div>
     </div>
     <div style="text-align:center;background:#f1f5f9;border-radius:14px;padding:14px;margin-bottom:14px">
-      <div style="font-size:26px;font-weight:900;color:#0B1426">${money(o.total)} <span style="font-size:14px;font-weight:600;color:#64748b">${paid ? "( Paid )" : (isCOD ? "( COD )" : "( Pending )")}</span></div>
+      <div style="font-size:26px;font-weight:900;color:#0B1426">${money(o.total)} <span style="font-size:14px;font-weight:600;color:#64748b">${paid ? "( পেইড )" : (isCOD ? "( ক্যাশ অন ডেলিভারি )" : "( পেন্ডিং )")}</span></div>
     </div>
     <div style="text-align:center">
       <img id="qrImg" src="${qrUrl}" width="160" height="160" alt="QR" style="display:block;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:8px"/>
@@ -724,15 +1414,15 @@ function makeInvoiceCanvas(o) {
     if (paid) {
       statusBn = "টাকা পেইড";
       badgeBg = "#d1fae5"; badgeColor = "#059669";
-      amountSuffix = " ( Paid )"; amountColor = "#4f46e5";
+      amountSuffix = " ( পেইড )"; amountColor = "#0B1426";
     } else if (isCOD) {
       statusBn = "ক্যাশ অন ডেলিভারি";
       badgeBg = "#e0e7ff"; badgeColor = "#4338ca";
-      amountSuffix = " ( COD )"; amountColor = "#4338ca";
+      amountSuffix = " ( ক্যাশ অন ডেলিভারি )"; amountColor = "#4338ca";
     } else {
       statusBn = "টাকা বাকি";
       badgeBg = "#fef3c7"; badgeColor = "#d97706";
-      amountSuffix = " ( Pending )"; amountColor = "#d97706";
+      amountSuffix = " ( পেন্ডিং )"; amountColor = "#d97706";
     }
 
     const qrText = [
@@ -744,16 +1434,22 @@ function makeInvoiceCanvas(o) {
       paid ? "PAID" : (isCOD ? "COD" : "PENDING")
     ].filter(Boolean).join(" | ");
 
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=" + encodeURIComponent(qrText);
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=8&data=" + encodeURIComponent(qrText);
     const qrImg = new Image();
     qrImg.crossOrigin = "anonymous";
 
     qrImg.onload = () => {
       try {
+        // Logical size 680x980 — render at 2.5x for HD print (not blurry)
         const W = 680, H = 980;
+        const SCALE = 2.5;
         const c = document.createElement("canvas");
-        c.width = W; c.height = H;
+        c.width = Math.round(W * SCALE);
+        c.height = Math.round(H * SCALE);
         const ctx = c.getContext("2d");
+        ctx.scale(SCALE, SCALE);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
 
         // White bg
         ctx.fillStyle = "#ffffff";
@@ -787,35 +1483,37 @@ function makeInvoiceCanvas(o) {
         ctx.textAlign = "center";
         ctx.fillText("🛒", 70, 63);
 
-        // Brand text
+        // Brand text — BD right next to NexCart
         ctx.textAlign = "left";
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 28px system-ui,sans-serif";
         ctx.fillText("NexCart", 110, 48);
+        const nexW = ctx.measureText("NexCart").width;
         ctx.fillStyle = "#00D4C8";
-        ctx.fillText("BD", 268, 48);
+        ctx.fillText("BD", 110 + nexW + 6, 48);
         ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.font = "13px system-ui,sans-serif";
         ctx.fillText("Everything You Need, One Cart.", 110, 72);
 
         // ===== STATUS BADGE =====
         ctx.textAlign = "center";
-        const badgeW = 200, badgeH = 42;
+        // Wider badge for Bengali "ক্যাশ অন ডেলিভারি"
+        const badgeW = isCOD ? 260 : 200, badgeH = 42;
         const bx = (W - badgeW) / 2, by = 150;
         ctx.fillStyle = badgeBg;
         roundRect(ctx, bx, by, badgeW, badgeH, 21);
         ctx.fill();
-        // check / warning icon circle
+        // icon circle
         ctx.fillStyle = badgeColor;
         ctx.beginPath();
         ctx.arc(bx + 28, by + 21, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#fff";
         ctx.font = "bold 14px system-ui,sans-serif";
-        ctx.fillText(paid ? "✓" : (isCOD ? "$" : "!"), bx + 28, by + 26);
+        ctx.fillText(paid ? "✓" : (isCOD ? "৳" : "!"), bx + 28, by + 26);
         ctx.fillStyle = badgeColor;
-        ctx.font = "bold 17px system-ui,sans-serif";
-        ctx.fillText(statusBn, bx + badgeW / 2 + 10, by + 28);
+        ctx.font = "bold 16px system-ui,sans-serif";
+        ctx.fillText(statusBn, bx + badgeW / 2 + 8, by + 28);
 
         // ===== ORDER ID =====
         ctx.fillStyle = "#94a3b8";
@@ -860,7 +1558,8 @@ function makeInvoiceCanvas(o) {
         ctx.fill();
         ctx.textAlign = "center";
         ctx.fillStyle = amountColor;
-        ctx.font = "bold 36px system-ui,sans-serif";
+        // Smaller font when suffix is long (ক্যাশ অন ডেলিভারি)
+        ctx.font = isCOD ? "bold 26px system-ui,sans-serif" : "bold 36px system-ui,sans-serif";
         ctx.fillText(money(o.total) + amountSuffix, W / 2, 515);
 
         // ===== QR =====
@@ -993,24 +1692,270 @@ async function loadSettings() {
   let wa = map.whatsapp;
   if (typeof wa === "string") { try { wa = JSON.parse(wa); } catch (e) {} }
   $("waNumber").value = (typeof wa === "string" ? wa : String(wa || "")).replace(/"/g, "");
-  paymentMethods = Array.isArray(map.payment_methods) ? map.payment_methods : [];
+  let pms = map.payment_methods;
+  if (typeof pms === "string") { try { pms = JSON.parse(pms); } catch (e) { pms = []; } }
+  paymentMethods = Array.isArray(pms) ? pms : [];
+  paymentMethods = paymentMethods.map(p => ({ ...p, logo: (p.logo || p.logo_url || "").trim() }));
   if (!paymentMethods.length) {
     paymentMethods = [
-      { id: "cod", name: "Cash on Delivery", type: "cod", enabled: true, number: "", notice: "" },
-      { id: "bkash", name: "বিকাশ", type: "mobile_banking", enabled: true, number: "01307352309", notice: "এই নম্বরে Send Money করুন।" },
-      { id: "nagad", name: "নগদ", type: "mobile_banking", enabled: true, number: "01307352309", notice: "এই নম্বরে Send Money করুন।" }
+      { id: "cod", name: "Cash on Delivery", type: "cod", enabled: true, logo: "", number: "", notice: "" },
+      { id: "bkash", name: "bKash", type: "mobile_banking", enabled: true, logo: "", number: "01307352309", notice: "এই নম্বরে Send Money করুন।" },
+      { id: "nagad", name: "Nagad", type: "mobile_banking", enabled: true, logo: "", number: "01307352309", notice: "এই নম্বরে Send Money করুন।" }
     ];
   }
   renderPm();
+
+  // Site open/closed status
+  let site = map.site_status;
+  if (typeof site === "string") { try { site = JSON.parse(site); } catch (e) { site = null; } }
+  if (!site || typeof site !== "object") site = { open: true, message: "আমরা সাময়িকভাবে বন্ধ আছি। শীঘ্রই ফিরে আসছি। ধন্যবাদ।" };
+  const isOpen = site.open !== false;
+  if ($("siteOpen")) $("siteOpen").checked = isOpen;
+  if ($("siteClosed")) $("siteClosed").checked = !isOpen;
+  if ($("siteClosedMsg")) $("siteClosedMsg").value = site.message || "আমরা সাময়িকভাবে বন্ধ আছি। শীঘ্রই ফিরে আসছি। ধন্যবাদ।";
+
+  // Shipping charges
+  let ship = map.shipping_charges;
+  if (typeof ship === "string") { try { ship = JSON.parse(ship); } catch (e) { ship = null; } }
+  if (!ship || typeof ship !== "object") ship = { dhaka: 60, outside: 120 };
+  if ($("shipDhaka")) $("shipDhaka").value = Number(ship.dhaka) >= 0 ? Number(ship.dhaka) : 60;
+  if ($("shipOutside")) $("shipOutside").value = Number(ship.outside) >= 0 ? Number(ship.outside) : 120;
+
+  // Favicon
+  let fav = map.favicon;
+  if (typeof fav === "string") { try { fav = JSON.parse(fav); } catch (e) {} }
+  const favUrl = (typeof fav === "string" ? fav : String(fav || "")).replace(/"/g, "").trim();
+  applyFaviconUI(favUrl);
+  applyFaviconLink(favUrl);
+
+  // Categories
+  let cats = map.categories;
+  if (typeof cats === "string") { try { cats = JSON.parse(cats); } catch (e) { cats = []; } }
+  storeCategories = Array.isArray(cats) ? cats.map(c => ({
+    name: (c.name || c || "").toString().trim(),
+    icon: (c.icon || "").toString().trim()
+  })).filter(c => c.name) : [];
+  // merge from products
+  products.forEach(p => {
+    const n = (p.category || "").trim();
+    if (n && !storeCategories.find(c => c.name === n)) storeCategories.push({ name: n, icon: "" });
+  });
+  renderCatAdmin();
+  refreshCatDatalist();
+
+  // Footer
+  let ft = map.footer;
+  if (typeof ft === "string") { try { ft = JSON.parse(ft); } catch (e) { ft = null; } }
+  if (!ft || typeof ft !== "object") ft = {};
+  if ($("ftTagline1")) $("ftTagline1").value = ft.tagline1 || "Your Everyday Shopping Destination.";
+  if ($("ftTagline2")) $("ftTagline2").value = ft.tagline2 || "Shop smart. Shop easy. Shop with confidence.";
+  if ($("ftEmail")) $("ftEmail").value = ft.email || "";
+  if ($("ftLocation")) $("ftLocation").value = ft.location || "Bangladesh";
+  if ($("ftFacebook")) $("ftFacebook").value = ft.facebook || "";
+  if ($("ftInstagram")) $("ftInstagram").value = ft.instagram || "";
+  if ($("ftYoutube")) $("ftYoutube").value = ft.youtube || "";
+  if ($("ftQuick")) $("ftQuick").value = linksToText(ft.quick_links || defaultQuickLinks());
+  if ($("ftService")) $("ftService").value = linksToText(ft.service_links || defaultServiceLinks());
+  if ($("ftAbout")) $("ftAbout").value = linksToText(ft.about_links || defaultAboutLinks());
 }
+
+let storeCategories = [];
+
+function linksToText(arr) {
+  return (arr || []).map(x => (x.label || "") + " | " + (x.url || "")).join("\n");
+}
+function textToLinks(str) {
+  return String(str || "").split(/\r?\n/).map(line => {
+    const parts = line.split("|").map(s => s.trim());
+    if (!parts[0]) return null;
+    return { label: parts[0], url: parts[1] || "#" };
+  }).filter(Boolean);
+}
+function defaultQuickLinks() {
+  return [
+    { label: "হোম", url: "#home" },
+    { label: "সব পণ্য", url: "#products" },
+    { label: "ক্যাটাগরি", url: "#categories" },
+    { label: "অফার", url: "#offers" }
+  ];
+}
+function defaultServiceLinks() {
+  return [
+    { label: "আমার অর্ডার", url: "#orders" },
+    { label: "WhatsApp সাপোর্ট", url: "https://wa.me/8801307352309" },
+    { label: "অর্ডার ট্র্যাক", url: "https://wa.me/8801307352309" }
+  ];
+}
+function defaultAboutLinks() {
+  return [
+    { label: "প্রাইভেসি পলিসি", url: "#" },
+    { label: "টার্মস ও কন্ডিশন", url: "#" }
+  ];
+}
+
+function refreshCatDatalist() {
+  const sel = $("categorySelect");
+  if (!sel) return;
+  const current = ($("categoryInput")?.value || "").trim();
+  // শুধু যেগুলো অ্যাড/সেভ করা আছে — ডিফল্ট লিস্ট নেই
+  const uniq = [...new Set(storeCategories.map(c => c.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "bn"));
+  sel.innerHTML = `<option value="">— সিলেক্ট করুন —</option>` +
+    uniq.map(n => `<option value="${safe(n)}">${safe(n)}</option>`).join("") +
+    `<option value="__new__">+ নতুন ক্যাটাগরি লিখুন</option>`;
+  if (current && uniq.includes(current)) {
+    sel.value = current;
+    if ($("categoryInput")) {
+      $("categoryInput").style.display = "none";
+      $("categoryInput").value = current;
+    }
+  } else if (current) {
+    sel.value = "__new__";
+    if ($("categoryInput")) {
+      $("categoryInput").style.display = "block";
+      $("categoryInput").value = current;
+    }
+  } else {
+    sel.value = "";
+    if ($("categoryInput")) {
+      $("categoryInput").style.display = "none";
+      $("categoryInput").value = "";
+    }
+  }
+}
+function setupCategorySelect() {
+  const sel = $("categorySelect");
+  const inp = $("categoryInput");
+  if (!sel || !inp) return;
+  sel.addEventListener("change", () => {
+    if (sel.value === "__new__") {
+      inp.style.display = "block";
+      inp.value = "";
+      inp.focus();
+    } else if (sel.value) {
+      inp.style.display = "none";
+      inp.value = sel.value;
+    } else {
+      inp.style.display = "none";
+      inp.value = "";
+    }
+  });
+}
+
+function renderCatAdmin() {
+  const box = $("catAdminList");
+  if (!box) return;
+  if (!storeCategories.length) {
+    box.innerHTML = `<p style="font-size:13px;color:var(--muted)">এখনো কোনো ক্যাটাগরি নেই। নিচে যোগ করুন বা পণ্য সেভ করলে অটো আসবে।</p>`;
+    return;
+  }
+  box.innerHTML = storeCategories.map((c, i) => `
+    <div class="pm-card" data-ci="${i}">
+      <div class="row" style="align-items:center">
+        <div style="width:48px;height:48px;border-radius:10px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          ${c.icon ? `<img src="${safe(c.icon)}" style="width:100%;height:100%;object-fit:contain" onerror="this.parentNode.innerHTML='📦'">` : `<span style="font-size:22px">📦</span>`}
+        </div>
+        <label style="flex:1;min-width:120px">নাম
+          <input value="${safe(c.name)}" data-cat-name="${i}" style="margin-top:4px">
+        </label>
+        <label style="font-size:12px">আইকন
+          <input type="file" accept="image/*" data-cat-icon="${i}" style="font-size:12px;max-width:160px;margin-top:4px">
+        </label>
+        <button type="button" class="danger" style="padding:8px 10px;font-size:12px" data-cat-del="${i}">মুছুন</button>
+      </div>
+    </div>`).join("");
+  box.querySelectorAll("[data-cat-name]").forEach(el => {
+    el.addEventListener("change", () => {
+      const i = Number(el.dataset.catName);
+      if (storeCategories[i]) storeCategories[i].name = el.value.trim();
+    });
+  });
+  box.querySelectorAll("[data-cat-del]").forEach(el => {
+    el.addEventListener("click", () => {
+      storeCategories.splice(Number(el.dataset.catDel), 1);
+      renderCatAdmin();
+      refreshCatDatalist();
+    });
+  });
+  box.querySelectorAll("[data-cat-icon]").forEach(inp => {
+    inp.addEventListener("change", async () => {
+      const i = Number(inp.dataset.catIcon);
+      const file = inp.files && inp.files[0];
+      if (!file || !storeCategories[i]) return;
+      try {
+        message("ক্যাটাগরি আইকন আপলোড হচ্ছে...");
+        const urls = await uploadImages([file]);
+        if (urls[0]) {
+          storeCategories[i].icon = urls[0];
+          renderCatAdmin();
+          message("আইকন আপলোড হয়েছে। সেভ বাটন চাপুন।");
+        }
+      } catch (err) {
+        message("আপলোড ব্যর্থ: " + (err.message || err), true);
+      }
+    });
+  });
+}
+
+async function ensureCategorySaved(catName) {
+  catName = String(catName || "").trim();
+  if (!catName) return;
+  if (storeCategories.find(c => c.name === catName)) return;
+  storeCategories.push({ name: catName, icon: "" });
+  try {
+    await db.from("store_settings").upsert({
+      key: "categories",
+      value: storeCategories,
+      updated_at: new Date().toISOString()
+    });
+    renderCatAdmin();
+    refreshCatDatalist();
+  } catch (e) { console.warn(e); }
+}
+
+function applyFaviconUI(url) {
+  const img = $("faviconPreview");
+  const ph = $("faviconPlaceholder");
+  const rm = $("removeFavicon");
+  if (url && /^https?:\/\//i.test(url)) {
+    if (img) { img.src = url; img.style.display = "block"; }
+    if (ph) ph.style.display = "none";
+    if (rm) rm.style.display = "inline-block";
+  } else {
+    if (img) { img.src = ""; img.style.display = "none"; }
+    if (ph) ph.style.display = "block";
+    if (rm) rm.style.display = "none";
+  }
+}
+
+function applyFaviconLink(url) {
+  let link = document.querySelector("link[rel='icon']") || document.querySelector("link[rel='shortcut icon']");
+  if (url && /^https?:\/\//i.test(url)) {
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = url;
+    // Also apple-touch-icon for mobile
+    let apple = document.querySelector("link[rel='apple-touch-icon']");
+    if (!apple) {
+      apple = document.createElement("link");
+      apple.rel = "apple-touch-icon";
+      document.head.appendChild(apple);
+    }
+    apple.href = url;
+  }
+}
+
 function renderPm() {
   $("pmList").innerHTML = paymentMethods.map((pm, i) => `
     <div class="pm-card" data-i="${i}">
       <div class="row">
-        <label style="flex:1">নাম<input value="${safe(pm.name)}" data-f="name" data-i="${i}"></label>
-        <label style="width:140px">ধরন
+        <label style="flex:1">নাম<input value="${safe(pm.name)}" data-f="name" data-i="${i}" placeholder="Cash on Delivery"></label>
+        <label style="width:150px">ধরন
           <select data-f="type" data-i="${i}">
-            <option value="cod" ${pm.type === "cod" ? "selected" : ""}>COD</option>
+            <option value="cod" ${pm.type === "cod" ? "selected" : ""}>Cash on Delivery</option>
             <option value="mobile_banking" ${pm.type === "mobile_banking" ? "selected" : ""}>মোবাইল ব্যাংকিং</option>
           </select>
         </label>
@@ -1021,6 +1966,13 @@ function renderPm() {
           </select>
         </label>
       </div>
+      <label>লোগো (ছবি আপলোড করুন)</label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px">
+        ${pm.logo ? `<img src="${safe(pm.logo)}" alt="logo" style="height:44px;width:44px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:#fff" onerror="this.style.display='none'">` : `<span style="font-size:12px;color:var(--muted)">কোনো লোগো নেই</span>`}
+        <input type="file" accept="image/*" data-logo-upload="${i}" style="font-size:12px;max-width:220px">
+        ${pm.logo ? `<button type="button" class="danger" style="padding:6px 10px;font-size:12px" onclick="clearPmLogo(${i})">লোগো মুছুন</button>` : ""}
+      </div>
+      <input type="hidden" value="${safe(pm.logo || "")}" data-f="logo" data-i="${i}">
       <label>নম্বর (মোবাইল ব্যাংকিং)</label>
       <input value="${safe(pm.number || "")}" data-f="number" data-i="${i}" placeholder="01XXXXXXXXX">
       <label>নোটিশ (ইউজার কী করবে)</label>
@@ -1031,6 +1983,41 @@ function renderPm() {
     el.addEventListener("change", () => syncPm());
     el.addEventListener("input", () => syncPm());
   });
+  $("pmList").querySelectorAll("[data-logo-upload]").forEach(inp => {
+    inp.addEventListener("change", async () => {
+      const i = Number(inp.dataset.logoUpload);
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) { message("শুধু ছবি আপলোড করুন।", true); return; }
+      if (file.size > 2 * 1024 * 1024) { message("লোগো ২MB-এর কম হওয়া ভালো।", true); return; }
+      try {
+        message("লোগো আপলোড হচ্ছে...");
+        const urls = await uploadImages([file]);
+        if (urls[0]) {
+          syncPm();
+          paymentMethods[i].logo = urls[0];
+          // Auto-save so logo shows on store immediately
+          const { error } = await db.from("store_settings").upsert({
+            key: "payment_methods",
+            value: paymentMethods,
+            updated_at: new Date().toISOString()
+          });
+          if (error) throw error;
+          renderPm();
+          message("✅ লোগো আপলোড ও সেভ হয়েছে। ইউজার সাইটে দেখা যাবে।");
+        }
+      } catch (err) {
+        message("লোগো আপলোড ব্যর্থ: " + (err.message || err), true);
+        console.error(err);
+      }
+    });
+  });
+}
+function clearPmLogo(i) {
+  if (paymentMethods[i]) {
+    paymentMethods[i].logo = "";
+    renderPm();
+  }
 }
 function syncPm() {
   $("pmList").querySelectorAll(".pm-card").forEach(card => {
@@ -1052,11 +2039,24 @@ $("addPm").addEventListener("click", () => {
     name: "নতুন মেথড",
     type: "mobile_banking",
     enabled: true,
+    logo: "",
     number: "",
     notice: ""
   });
   renderPm();
 });
+$("saveSiteStatus")?.addEventListener("click", async () => {
+  const isOpen = $("siteOpen")?.checked !== false;
+  const msg = ($("siteClosedMsg")?.value || "").trim() || "আমরা সাময়িকভাবে বন্ধ আছি। শীঘ্রই ফিরে আসছি। ধন্যবাদ।";
+  const { error } = await db.from("store_settings").upsert({
+    key: "site_status",
+    value: { open: isOpen, message: msg },
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message(isOpen ? "✅ ওয়েবসাইট এখন অন (খোলা)" : "🔴 ওয়েবসাইট এখন অফ (বন্ধ)");
+});
+
 $("saveWa").addEventListener("click", async () => {
   const v = $("waNumber").value.trim().replace(/\D/g, "");
   if (v.length < 10) { message("সঠিক WhatsApp নম্বর দিন", true); return; }
@@ -1067,6 +2067,18 @@ $("saveWa").addEventListener("click", async () => {
   });
   if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
   message("WhatsApp নম্বর সেভ হয়েছে।");
+});
+
+$("saveShipping")?.addEventListener("click", async () => {
+  const dhaka = Math.max(0, Number($("shipDhaka")?.value) || 0);
+  const outside = Math.max(0, Number($("shipOutside")?.value) || 0);
+  const { error } = await db.from("store_settings").upsert({
+    key: "shipping_charges",
+    value: { dhaka, outside },
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message("✅ ডেলিভারি চার্জ সেভ হয়েছে। ঢাকা: ৳" + dhaka + " · বাইরে: ৳" + outside);
 });
 $("savePm").addEventListener("click", async () => {
   syncPm();
@@ -1093,6 +2105,127 @@ $("saveStoreUrl")?.addEventListener("click", () => {
 if ($("storeUrl")) {
   $("storeUrl").value = localStorage.getItem("nexcart_store_url") || "";
 }
+
+/* Favicon upload / remove */
+$("saveFavicon")?.addEventListener("click", async () => {
+  const fileInput = $("faviconFile");
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    message("আগে একটি ছবি সিলেক্ট করুন।", true);
+    return;
+  }
+  if (!file.type.startsWith("image/") && !/\.ico$/i.test(file.name)) {
+    message("শুধু ছবি বা .ico ফাইল আপলোড করুন।", true);
+    return;
+  }
+  if (file.size > 1 * 1024 * 1024) {
+    message("ফ্যাভিকন ১MB-এর কম হওয়া ভালো।", true);
+    return;
+  }
+  const btn = $("saveFavicon");
+  btn.disabled = true;
+  btn.textContent = "আপলোড হচ্ছে...";
+  try {
+    const urls = await uploadImages([file]);
+    const url = urls[0];
+    if (!url) throw new Error("আপলোড ব্যর্থ");
+    const { error } = await db.from("store_settings").upsert({
+      key: "favicon",
+      value: url,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    applyFaviconUI(url);
+    applyFaviconLink(url);
+    if (fileInput) fileInput.value = "";
+    message("✅ ফ্যাভিকন সেভ হয়েছে। ইউজার সাইট রিফ্রেশ করলে দেখা যাবে।");
+  } catch (err) {
+    message("ফ্যাভিকন সেভ ব্যর্থ: " + (err.message || err), true);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "ফ্যাভিকন সেভ করুন";
+  }
+});
+
+$("removeFavicon")?.addEventListener("click", async () => {
+  if (!confirm("ফ্যাভিকন মুছে ফেলবেন?")) return;
+  try {
+    const { error } = await db.from("store_settings").upsert({
+      key: "favicon",
+      value: "",
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    applyFaviconUI("");
+    // Remove link tags
+    document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']").forEach(el => el.remove());
+    message("ফ্যাভিকন মুছে ফেলা হয়েছে।");
+  } catch (err) {
+    message("মুছতে ব্যর্থ: " + (err.message || err), true);
+  }
+});
+
+$("addCatBtn")?.addEventListener("click", () => {
+  const n = ($("newCatName")?.value || "").trim();
+  if (!n) { message("ক্যাটাগরি নাম লিখুন", true); return; }
+  if (storeCategories.find(c => c.name === n)) { message("এই ক্যাটাগরি আগেই আছে", true); return; }
+  storeCategories.push({ name: n, icon: "" });
+  if ($("newCatName")) $("newCatName").value = "";
+  renderCatAdmin();
+  refreshCatDatalist();
+});
+$("saveCatsBtn")?.addEventListener("click", async () => {
+  // sync names from inputs
+  document.querySelectorAll("[data-cat-name]").forEach(el => {
+    const i = Number(el.dataset.catName);
+    if (storeCategories[i]) storeCategories[i].name = el.value.trim() || storeCategories[i].name;
+  });
+  storeCategories = storeCategories.filter(c => c.name);
+  const { error } = await db.from("store_settings").upsert({
+    key: "categories",
+    value: storeCategories,
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  refreshCatDatalist();
+  message("✅ ক্যাটাগরি সেভ হয়েছে।");
+});
+
+$("saveFooterBtn")?.addEventListener("click", async () => {
+  const footer = {
+    tagline1: ($("ftTagline1")?.value || "").trim(),
+    tagline2: ($("ftTagline2")?.value || "").trim(),
+    email: ($("ftEmail")?.value || "").trim(),
+    location: ($("ftLocation")?.value || "").trim(),
+    facebook: ($("ftFacebook")?.value || "").trim(),
+    instagram: ($("ftInstagram")?.value || "").trim(),
+    youtube: ($("ftYoutube")?.value || "").trim(),
+    quick_links: textToLinks($("ftQuick")?.value),
+    service_links: textToLinks($("ftService")?.value),
+    about_links: textToLinks($("ftAbout")?.value)
+  };
+  const { error } = await db.from("store_settings").upsert({
+    key: "footer",
+    value: footer,
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message("✅ ফুটার সেভ হয়েছে।");
+});
+
+setupVariantUI();
+setupCategorySelect();
+
+/* Settings folders accordion */
+document.getElementById("settingsFolders")?.addEventListener("click", e => {
+  const head = e.target.closest(".sfolder-head");
+  if (!head) return;
+  const folder = head.parentElement;
+  const wasOpen = folder.classList.contains("open");
+  document.querySelectorAll(".sfolder").forEach(f => f.classList.remove("open"));
+  if (!wasOpen) folder.classList.add("open");
+});
 
 db.auth.onAuthStateChange((e) => { if (e === "SIGNED_OUT") showLogin(); });
 refreshAuth();
