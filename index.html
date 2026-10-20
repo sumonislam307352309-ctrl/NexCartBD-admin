@@ -42,7 +42,46 @@ button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px
 .item p{font-size:12.5px;color:var(--muted);margin:0}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .hidden{display:none!important}
-#message{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:13.5px;font-weight:500;white-space:pre-wrap}
+#message{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(.96);
+  z-index:200;
+  min-width:min(340px,88vw);
+  max-width:min(440px,92vw);
+  padding:18px 22px;
+  border-radius:16px;
+  font-size:14px;
+  font-weight:600;
+  white-space:pre-wrap;
+  text-align:center;
+  box-shadow:0 20px 50px rgba(15,23,42,.22);
+  border:1px solid var(--line);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s, transform .25s;
+  line-height:1.55;
+}
+#message.show{
+  opacity:1;
+  pointer-events:auto;
+  transform:translate(-50%,-50%) scale(1);
+}
+#message-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(5,8,23,.4);
+  z-index:199;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s;
+  backdrop-filter:blur(2px);
+}
+#message-backdrop.show{
+  opacity:1;
+  pointer-events:auto;
+}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px;border-bottom:2px solid var(--line);color:var(--muted);font-size:12px}
 td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -108,6 +147,7 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 </header>
 
 <main class="wrap">
+  <div id="message-backdrop"></div>
   <div id="message" class="hidden"></div>
 
   <section id="loginCard" class="card" style="max-width:440px;margin:40px auto">
@@ -287,6 +327,29 @@ td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
             <label>নম্বর (দেশ কোডসহ, যেমন 8801307352309)</label>
             <input id="waNumber" placeholder="8801307352309">
             <button class="primary" id="saveWa">WhatsApp সেভ করুন</button>
+          </div>
+        </div>
+
+        <div class="sfolder" data-folder="telegram">
+          <div class="sfolder-head"><span class="sf-icon">✈️</span><span class="sf-title">Telegram অর্ডার নোটিফ</span><span class="sf-arrow">▶</span></div>
+          <div class="sfolder-body">
+            <p class="sf-hint">ইউজার অর্ডার করলে টেলিগ্রামে মেসেজ যাবে — অ্যাডমিন সাইট খোলা রাখতে হবে না। BotFather থেকে বট বানিয়ে টোকেন নিন, তারপর Chat ID দিন।</p>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin:10px 0;cursor:pointer">
+              <input type="checkbox" id="tgEnabled" style="width:auto;margin:0">
+              Telegram নোটিফ চালু করুন
+            </label>
+            <label>Bot Token</label>
+            <input id="tgBotToken" placeholder="123456:ABC-DEF..." autocomplete="off">
+            <label>Chat ID (নিজের বা গ্রুপ)</label>
+            <input id="tgChatId" placeholder="যেমন: 5912345678">
+            <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.55">
+              Chat ID জানতে বটে <b>/start</b> পাঠান, তারপর ব্রাউজারে খুলুন:<br>
+              <code style="font-size:11px;word-break:break-all">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="primary" id="saveTelegram" type="button">Telegram সেভ করুন</button>
+              <button class="secondary" id="testTelegram" type="button">টেস্ট মেসেজ পাঠান</button>
+            </div>
           </div>
         </div>
 
@@ -636,14 +699,31 @@ function setupVariantUI() {
 }
 
 function message(text, error = false) {
-  $("message").textContent = text;
-  $("message").classList.remove("hidden");
-  $("message").style.background = error ? "#ffe4e6" : "#ecfdf5";
-  $("message").style.color = error ? "#be123c" : "#065f46";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  setTimeout(() => hideMessage(), 4000);
+  const el = $("message");
+  const bd = $("message-backdrop");
+  el.textContent = text;
+  el.classList.remove("hidden");
+  el.style.background = error ? "#fff1f2" : "#ecfdf5";
+  el.style.color = error ? "#be123c" : "#065f46";
+  el.style.borderColor = error ? "#fecdd3" : "#a7f3d0";
+  // force reflow then show
+  void el.offsetWidth;
+  el.classList.add("show");
+  if (bd) bd.classList.add("show");
+  clearTimeout(window._msgTimer);
+  window._msgTimer = setTimeout(() => hideMessage(), 3500);
 }
-function hideMessage() { $("message").classList.add("hidden"); }
+function hideMessage() {
+  const el = $("message");
+  const bd = $("message-backdrop");
+  el.classList.remove("show");
+  if (bd) bd.classList.remove("show");
+  setTimeout(() => el.classList.add("hidden"), 250);
+}
+// click backdrop or message to dismiss
+document.addEventListener("click", e => {
+  if (e.target && (e.target.id === "message-backdrop" || e.target.id === "message")) hideMessage();
+});
 function showDashboard() {
   $("loginCard").classList.add("hidden");
   $("dashboard").classList.remove("hidden");
@@ -777,18 +857,27 @@ function getStoreBase() {
   return localStorage.getItem("nexcart_store_url") || "";
 }
 
-function copyProductLink(id) {
+function getProductStoreLink(id) {
   let base = getStoreBase().trim().replace(/\/$/, "");
-  if (!base) {
-    message("আগে সেটিংস থেকে স্টোর URL সেভ করুন।\nউদাহরণ: https://yoursite.com  বা  https://yoursite.com/store.html", true);
+  if (!base) return null;
+  if (base.includes("?")) return base + "&id=" + id;
+  return base + "?id=" + id;
+}
+
+function viewProductOnStore(id) {
+  const link = getProductStoreLink(id);
+  if (!link) {
+    message("আগে সেটিংস থেকে স্টোর URL সেভ করুন।\nউদাহরণ: https://nexcartbd.vercel.app", true);
     return;
   }
-  // Support both domain root and .html file
-  let link;
-  if (base.includes("?")) {
-    link = base + "&id=" + id;
-  } else {
-    link = base + "?id=" + id;
+  window.open(link, "_blank", "noopener");
+}
+
+function copyProductLink(id) {
+  const link = getProductStoreLink(id);
+  if (!link) {
+    message("আগে সেটিংস থেকে স্টোর URL সেভ করুন।\nউদাহরণ: https://yoursite.com  বা  https://yoursite.com/store.html", true);
+    return;
   }
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -980,9 +1069,13 @@ function renderOrders() {
 
   $("ordersBody").innerHTML = list.length ? list.map(o => {
     const items = Array.isArray(o.items) ? o.items : [];
-    const itemsHtml = items.map(i =>
-      `<div style="margin:2px 0">• <b>${safe(i.name)}</b> × ${i.quantity || 1} <span style="color:var(--muted)">(${money(i.price)})</span></div>`
-    ).join("") || "—";
+    const itemsHtml = items.map(i => {
+      const pid = i.id ? String(i.id) : "";
+      const viewBtn = pid
+        ? `<button type="button" class="secondary" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="viewProductOnStore('${safe(pid)}')">পণ্য দেখুন</button>`
+        : "";
+      return `<div style="margin:2px 0 8px">• <b>${safe(i.name)}</b> × ${i.quantity || 1} <span style="color:var(--muted)">(${money(i.price)})</span>${viewBtn ? "<br>" + viewBtn : ""}</div>`;
+    }).join("") || "—";
     const stClass = statusClass(o.status);
     const paid = isPaid(o);
     const pm = o.payment_method || "";
@@ -1692,6 +1785,15 @@ async function loadSettings() {
   let wa = map.whatsapp;
   if (typeof wa === "string") { try { wa = JSON.parse(wa); } catch (e) {} }
   $("waNumber").value = (typeof wa === "string" ? wa : String(wa || "")).replace(/"/g, "");
+
+  // Telegram
+  let tg = map.telegram;
+  if (typeof tg === "string") { try { tg = JSON.parse(tg); } catch (e) { tg = null; } }
+  if (!tg || typeof tg !== "object") tg = { enabled: false, bot_token: "", chat_id: "" };
+  if ($("tgEnabled")) $("tgEnabled").checked = !!tg.enabled;
+  if ($("tgBotToken")) $("tgBotToken").value = tg.bot_token || "";
+  if ($("tgChatId")) $("tgChatId").value = tg.chat_id || "";
+
   let pms = map.payment_methods;
   if (typeof pms === "string") { try { pms = JSON.parse(pms); } catch (e) { pms = []; } }
   paymentMethods = Array.isArray(pms) ? pms : [];
@@ -2068,6 +2170,50 @@ $("saveWa").addEventListener("click", async () => {
   if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
   message("WhatsApp নম্বর সেভ হয়েছে।");
 });
+
+$("saveTelegram")?.addEventListener("click", async () => {
+  const enabled = !!$("tgEnabled")?.checked;
+  const bot_token = ($("tgBotToken")?.value || "").trim();
+  const chat_id = ($("tgChatId")?.value || "").trim();
+  if (enabled && (!bot_token || !chat_id)) {
+    message("চালু করতে Bot Token ও Chat ID দুটোই দিন।", true);
+    return;
+  }
+  const { error } = await db.from("store_settings").upsert({
+    key: "telegram",
+    value: { enabled, bot_token, chat_id },
+    updated_at: new Date().toISOString()
+  });
+  if (error) { message("সেভ ব্যর্থ: " + error.message, true); return; }
+  message(enabled ? "✅ Telegram নোটিফ চালু ও সেভ হয়েছে।" : "Telegram সেটিংস সেভ হয়েছে (এখন বন্ধ)।");
+});
+
+$("testTelegram")?.addEventListener("click", async () => {
+  const bot_token = ($("tgBotToken")?.value || "").trim();
+  const chat_id = ($("tgChatId")?.value || "").trim();
+  if (!bot_token || !chat_id) {
+    message("আগে Bot Token ও Chat ID লিখুন।", true);
+    return;
+  }
+  const btn = $("testTelegram");
+  if (btn) { btn.disabled = true; btn.textContent = "পাঠানো হচ্ছে..."; }
+  try {
+    const text = "🔔 NexCart BD — টেস্ট নোটিফ\n\nTelegram কানেকশন ঠিক আছে। নতুন অর্ডার এলে এখানে মেসেজ আসবে।";
+    const res = await fetch("https://api.telegram.org/bot" + bot_token + "/sendMessage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chat_id, text: text })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.description || "Telegram API error");
+    message("✅ টেস্ট মেসেজ পাঠানো হয়েছে। টেলিগ্রাম চেক করুন।");
+  } catch (err) {
+    message("টেস্ট ব্যর্থ: " + (err.message || err), true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "টেস্ট মেসেজ পাঠান"; }
+  }
+});
+
 
 $("saveShipping")?.addEventListener("click", async () => {
   const dhaka = Math.max(0, Number($("shipDhaka")?.value) || 0);
